@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serenote – Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="calendar.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">Serenote</div>
+    <nav>
+      <ul>
+        <li class="active" data-page="dashboard">📅 Dashboard</li>
+        <li data-page="journal">📖 Journal</li>
+        <li data-page="voice">🎙 Voice Note</li>
+        <li data-page="mood">🌱 Mood Garden</li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main>
+    <header class="topbar">
+      <input type="text" id="searchBar" placeholder="Search your notes...">
+    </header>
+
+    <section id="content">
+      <h1>Welcome to Serenote 🌸</h1>
+      <p>Select an option from the sidebar to get started.</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script src="calendar.js"></script>
+</body>
+</html>
