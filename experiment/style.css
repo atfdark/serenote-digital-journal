@@ -77,5 +77,259 @@ main {
 /* Content area */
 #content {
   flex: 1;
-  padding: 30px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Journal Section */
+.journal-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 300px;
+}
+
+.journal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.date-box {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease;
+  text-align: center;
+}
+
+.date-box:hover {
+  transform: scale(1.05);
+}
+
+.journal-header h2 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.journal-container textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 200px;
+  padding: 20px;
+  font-size: 1rem;
+  line-height: 1.8rem;
+  border: none;
+  outline: none;
+  resize: vertical;
+  background: repeating-linear-gradient(
+    white,
+    white 28px,
+    #dcdcdc 29px
+  );
+  border-radius: 8px;
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+}
+
+/* Journal Buttons */
+.journal-container button {
+  margin-top: 15px;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.journal-container button:hover {
+  opacity: 0.9;
+}
+
+#saveMsg {
+  margin-top: 10px;
+  color: green;
+  font-weight: 500;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Voice Note */
+.voice-msg {
+  font-size: 1.2rem;
+  margin: 20px 0 10px;
+  color: #333;
+}
+
+#waveform {
+  width: 100%;
+  height: 150px;
+  border-radius: 12px;
+  background: #fff;
+  margin: 10px 0 20px;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+}
+
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.voice-controls button {
+  flex: 1;
+  min-width: 100px;
+  padding: 12px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+#recordBtn { background: #e74c3c; color: #fff; }
+#pauseBtn { background: #f1c40f; color: #fff; }
+#saveBtn { background: #2ecc71; color: #fff; }
+
+.voice-controls button:hover {
+  opacity: 0.85;
+}
+
+#voiceStatus {
+  margin-top: 15px;
+  font-weight: 500;
+  color: #555;
+}
+/* Hamburger menu button */
+.hamburger {
+  display: none; /* hidden by default (desktop) */
+  font-size: 1.8rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-right: 15px;
+  color: #333;
+}
+
+/* Show hamburger only on small screens */
+@media (max-width: 992px) {
+  .hamburger {
+    display: block;
+  }
+}
+
+
+/* Responsive Sidebar */
+@media (max-width: 992px) {
+  body {
+    flex-direction: column;
+  }
+
+  /* Sidebar hidden by default on small screens */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 1000;
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  /* Add overlay behind sidebar */
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 999;
+  }
+
+  .overlay.show {
+    display: block;
+  }
+
+  /* Show hamburger in topbar */
+  .hamburger {
+    display: block;
+    margin-right: 15px;
+  }
+
+  .topbar {
+    justify-content: flex-start;
+  }
+}
+
+/* ---------------- Responsive Design ---------------- */
+@media (max-width: 992px) {
+  body {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sidebar nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  main {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .journal-header h2 {
+    font-size: 1.3rem;
+  }
+  .date-box {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+  }
+  .voice-controls {
+    flex-direction: column;
+  }
+  .voice-controls button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 10px;
+  }
+  .sidebar .logo {
+    font-size: 1.2rem;
+  }
+  .journal-container textarea {
+    font-size: 0.9rem;
+    line-height: 1.6rem;
+    padding: 12px;
+  }
+  .journal-container button {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
 }

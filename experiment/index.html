@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="calendar.css">
 </head>
 <body>
-  <!-- Sidebar -->
+   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="logo">Serenote</div>
     <nav>
@@ -21,18 +21,25 @@
     </nav>
   </aside>
 
+  <!-- Overlay (for mobile sidebar) -->
+  <div class="overlay" id="overlay"></div>
+
   <!-- Main content -->
   <main>
+    <!-- Topbar -->
     <header class="topbar">
+      <button class="hamburger" id="menuToggle">☰</button>
       <input type="text" id="searchBar" placeholder="Search your notes...">
     </header>
 
+    <!-- Content area -->
     <section id="content">
       <h1>Welcome to Serenote 🌸</h1>
       <p>Select an option from the sidebar to get started.</p>
     </section>
   </main>
 
+  <!-- Scripts -->
   <script src="script.js"></script>
   <script src="calendar.js"></script>
 </body>
