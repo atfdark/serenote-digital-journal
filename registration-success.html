@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registration Successful | Serenote</title>
+  <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+  <link rel="stylesheet" href="css/logsign.css">
+  <style>
+    /* Additional styles for the success page */
+    .success-box {
+      text-align: center;
+      padding: 40px;
+    }
+    .success-box .icon {
+      font-size: 80px;
+      color: var(--success-text);
+      background-color: var(--success-bg);
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .success-box h2 {
+      font-size: 24px;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+    }
+    .success-box p {
+      color: var(--text-light);
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper" style="height: auto;">
+    <div class="success-box">
+      <div class="icon">
+        <i class='bx bx-check-shield'></i>
+      </div>
+      <h2>Registration Complete!</h2>
+      <p>Your account has been created successfully. You will be redirected to the main page shortly.</p>
+      <script>
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 3000);
+      </script>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Serenote – Dashboard</title>
+  <link rel="stylesheet" href="css/mainpage.css">
+  <link rel="stylesheet" href="css/mood-garden.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="topbar">
+        <div class="logo"><img src="assets/logo.png" alt="Serenote Logo" class="logo-sere" style="height: 40px;"></div>
+        <div class="search" role="search">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 21l-4.35-4.35"></path><circle cx="11" cy="11" r="7"></circle></svg>
+          <input aria-label="Search" placeholder="Search entries, moods…" />
+        </div>
+        <a aria-label="Home" title="Home" style="margin-left:8px; opacity:.7" href="#">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"></path><path d="M9 22V12h6v10"></path></svg>
+        </a>
+        <a aria-label="Logout" title="Logout" style="margin-left:8px; opacity:.7" href="login.html" id="logout-button">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </a>
+      </div>
+    </header>
+
+    <aside>
+      <div class="card panel" aria-label="Sidebar Navigation">
+        <div style="font-weight:800; opacity:.8; margin-bottom:6px">Quick Links</div>
+        <nav>
+          <ul>
+            <li class="active" data-section="dashboard"><span class="bullet"></span> Dashboard</li>
+            <li data-section="entries"><span class="bullet" style="background:#10b981"></span> Entries</li>
+            <li data-section="voice-notes-capsules"><span class="bullet" style="background:#f59e0b"></span> Voice Notes & Capsules</li>
+            <li data-section="mood-garden-standalone"><span class="bullet" style="background:#ef4444"></span> Mood Garden</li>
+          </ul>
+        </nav>
+      </div>
+    </aside>
+
+    <main>
+      <div class="grid">
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="card panel active-section">
+          <div class="toolbar">
+            <h2 style="margin:6px 0 12px 0">Dashboard Overview</h2>
+          </div>
+          <div class="grid grid-col-2">
+            <section class="card panel" aria-labelledby="dataInsightsTitle">
+              <div class="toolbar">
+                <h3 id="dataInsightsTitle" style="margin:6px 0 12px 0">Mood Insights</h3>
+              </div>
+              <div id="dataInsights">
+                <canvas id="moodChart"></canvas>
+              </div>
+            </section>
+
+            <section class="card panel" aria-labelledby="moodGardenTitle">
+              <div class="toolbar">
+                <h3 id="moodGardenTitle" style="margin:6px 0 12px 0">Mood Garden</h3>
+              </div>
+              <div id="moodGarden" class="mood-garden"></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Entries Section -->
+        <section id="entries-section" class="card panel hidden-section">
+          <div class="toolbar">
+            <h2 style="margin:6px 0 12px 0">New Entry</h2>
+          </div>
+          <form id="newEntryForm">
+            <div class="input-box">
+              <input type="text" id="entryTitle" placeholder="Title" required>
+            </div>
+            <div class="input-box">
+              <textarea id="entryContent" placeholder="Write your thoughts..." required></textarea>
+            </div>
+            <div class="input-box">
+              <label>Mood:</label>
+              <div class="mood-selector">
+                <div class="mood-option" data-mood="Happy">😊</div>
+                <div class="mood-option" data-mood="Sad">😢</div>
+                <div class="mood-option" data-mood="Angry">😠</div>
+                <div class="mood-option" data-mood="Calm">😌</div>
+                <div class="mood-option" data-mood="Excited">😃</div>
+              </div>
+              <input type="hidden" id="entryMood" required>
+            </div>
+            <div class="input-box">
+              <label for="isCapsule">Time Capsule:</label>
+              <input type="checkbox" id="isCapsule" name="isCapsule">
+            </div>
+            <div class="input-box" id="capsuleDatePicker" style="display: none;">
+              <label for="capsuleDate">Open Date:</label>
+              <input type="date" id="capsuleDate" name="capsuleDate">
+            </div>
+            <button type="submit" class="btn">Save Entry</button>
+          </form>
+
+          <div class="toolbar" style="margin-top: 20px;">
+            <h2 style="margin:6px 0 12px 0">My Past Entries</h2>
+          </div>
+          <div id="entries" class="list" aria-live="polite">
+            <!-- entries will be injected here -->
+          </div>
+        </section>
+
+        <!-- Voice Notes & Capsules Section -->
+        <section id="voice-notes-capsules-section" class="card panel hidden-section">
+          <div class="toolbar">
+            <h2 style="margin:6px 0 12px 0">New Voice Note</h2>
+          </div>
+          <div id="voice-recorder">
+            <button id="recordButton" class="btn">Record</button>
+            <button id="stopButton" class="btn" disabled>Stop</button>
+            <audio id="audioPlayback" controls></audio>
+            <button id="saveVoiceNoteButton" class="btn" disabled>Save Voice Note</button>
+          </div>
+
+          <div class="toolbar" style="margin-top: 20px;">
+            <h2 style="margin:6px 0 12px 0">My Time Capsules</h2>
+          </div>
+          <div id="timeCapsulesList" class="list" aria-live="polite">
+            <!-- time capsules will be injected here -->
+          </div>
+        </section>
+
+        <!-- Standalone Mood Garden Section -->
+        <section id="mood-garden-standalone-section" class="card panel hidden-section">
+          <div class="toolbar">
+            <h2 style="margin:6px 0 12px 0">Full Mood Garden</h2>
+          </div>
+          <div id="moodGardenStandalone" class="mood-garden"></div>
+        </section>
+
+        <!-- Compassionate Response Section (always visible or conditionally shown) -->
+        <section class="card panel" aria-labelledby="compassionateResponseTitle">
+          <div class="toolbar">
+            <h2 id="compassionateResponseTitle" style="margin:6px 0 12px 0">A Moment for You</h2>
+          </div>
+          <div id="compassionateResponse"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/mood-garden.js"></script>
+  <script>
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      window.location.href = 'login.html';
+    }
+
+    const newEntryForm = document.getElementById('newEntryForm');
+    const entriesEl = document.getElementById('entries');
+    const moodSelector = document.querySelector('.mood-selector');
+    const entryMoodInput = document.getElementById('entryMood');
+    const moodGardenDashboard = document.getElementById('moodGarden'); // For dashboard
+    const moodGardenStandalone = document.getElementById('moodGardenStandalone'); // For standalone Mood Garden
+    const isCapsuleCheckbox = document.getElementById('isCapsule');
+    const capsuleDatePicker = document.getElementById('capsuleDatePicker');
+    const capsuleDateInput = document.getElementById('capsuleDate');
+    const compassionateResponse = document.getElementById('compassionateResponse');
+    const moodChartCanvas = document.getElementById('moodChart').getContext('2d');
+    const timeCapsulesList = document.getElementById('timeCapsulesList');
+    const logoutButton = document.getElementById('logout-button');
+    const searchInput = document.querySelector('.search input');
+
+    let allEntries = [];
+
+    logoutButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('userId');
+      window.location.href = 'login.html';
+    });
+
+    searchInput.addEventListener('keyup', () => {
+      renderEntries(allEntries);
+      renderTimeCapsules(allEntries);
+    });
+
+    const sidebarLinks = document.querySelectorAll('aside nav ul li');
+    const sections = document.querySelectorAll('main .grid section');
+
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        const targetSectionId = link.dataset.section + '-section';
+        sections.forEach(section => {
+          if (section.id === targetSectionId) {
+            section.classList.remove('hidden-section');
+            section.classList.add('active-section');
+          } else {
+            section.classList.remove('active-section');
+            section.classList.add('hidden-section');
+          }
+        });
+        sidebarLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+
+        // Fetch data relevant to the activated section
+        if (link.dataset.section === 'dashboard') {
+          fetchInsights();
+          fetchGarden(userId).then(gardenData => renderGarden(gardenData, moodGardenDashboard));
+        } else if (link.dataset.section === 'entries') {
+          fetchEntries();
+        } else if (link.dataset.section === 'voice-notes-capsules') {
+          fetchEntries(); // Fetch all entries to filter for capsules
+        } else if (link.dataset.section === 'mood-garden-standalone') {
+          fetchGarden(userId).then(gardenData => renderGarden(gardenData, moodGardenStandalone));
+        }
+      });
+    });
+
+    const resources = {
+      quotes: [
+        "The best way out is always through.",
+        "This too shall pass.",
+        "It is okay to not be okay.",
+        "You are stronger than you think."
+      ],
+      prompts: [
+        "What is one thing you are grateful for today?",
+        "Write about a time you felt proud of yourself.",
+        "What is one thing you can do to be kind to yourself today?"
+      ],
+      music: [
+        {
+          title: "Weightless",
+          url: "https://www.youtube.com/watch?v=UfcAVejslrU"
+        },
+        {
+          title: "Clair de Lune",
+          url: "https://www.youtube.com/watch?v=CvFH_6DNRCY"
+        }
+      ]
+    };
+
+    isCapsuleCheckbox.addEventListener('change', () => {
+      capsuleDatePicker.style.display = isCapsuleCheckbox.checked ? 'block' : 'none';
+    });
+
+    moodSelector.addEventListener('click', (e) => {
+      if (e.target.classList.contains('mood-option')) {
+        const mood = e.target.dataset.mood;
+        entryMoodInput.value = mood;
+        document.querySelectorAll('.mood-option').forEach(option => option.classList.remove('selected'));
+        e.target.classList.add('selected');
+
+        if (mood === 'Sad' || mood === 'Angry') {
+          showCompassionateResponse();
+        }
+      }
+    });
+
+    function showCompassionateResponse() {
+      const resourceType = ['quotes', 'prompts', 'music'][Math.floor(Math.random() * 3)];
+      const resource = resources[resourceType][Math.floor(Math.random() * resources[resourceType].length)];
+
+      if (resourceType === 'music') {
+        compassionateResponse.innerHTML = `<p>Here is some music to help you relax:</p><a href="${resource.url}" target="_blank">${resource.title}</a>`;
+      } else {
+        compassionateResponse.innerHTML = `<p>${resource}</p>`;
+      }
+    }
+
+    newEntryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('entryTitle').value.trim();
+      const content = document.getElementById('entryContent').value.trim();
+      const mood = entryMoodInput.value;
+      const is_capsule = isCapsuleCheckbox.checked ? 1 : 0;
+      const capsule_open_date = is_capsule ? capsuleDateInput.value : null;
+
+      if (!title || !content || !mood) {
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:8080/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, title, content, type: 'text', mood, is_capsule, capsule_open_date })
+        });
+
+        if (res.ok) {
+          newEntryForm.reset();
+          capsuleDatePicker.style.display = 'none';
+          fetchEntries();
+          fetchGarden(userId).then(gardenData => {
+            renderGarden(gardenData, moodGardenDashboard);
+            renderGarden(gardenData, moodGardenStandalone);
+          });
+          fetchInsights();
+        } else {
+          const data = await res.json();
+          alert(data.message);
+        }
+      } catch (err) {
+        console.error('Error creating entry:', err);
+        alert('An error occurred while creating the entry.');
+      }
+    });
+
+    async function fetchEntries() {
+      try {
+        const res = await fetch(`http://localhost:8080/entries?userId=${userId}`);
+        allEntries = await res.json();
+        renderEntries(allEntries);
+        renderTimeCapsules(allEntries);
+      } catch (err) {
+        console.error('Error fetching entries:', err);
+      }
+    }
+
+    function renderEntries(entries) {
+      entriesEl.innerHTML = '';
+      const now = new Date();
+      const searchTerm = searchInput.value.toLowerCase();
+
+      entries
+        .filter(entry => !entry.is_capsule || (entry.is_capsule && new Date(entry.capsule_open_date) <= now))
+        .filter(entry => {
+          const title = entry.title.toLowerCase();
+          const content = entry.content.toLowerCase();
+          const mood = entry.mood.toLowerCase();
+          return title.includes(searchTerm) || content.includes(searchTerm) || mood.includes(searchTerm);
+        })
+        .forEach(entry => {
+          const el = document.createElement('div');
+          el.className = 'item';
+          if (entry.type === 'text') {
+            el.innerHTML = `<div style="font-weight:700">${entry.title}</div><small>${new Date(entry.created_at).toLocaleString()}</small><p>${entry.content}</p><p>Mood: ${entry.mood}</p><button class="delete-button" data-id="${entry.id}">Delete</button>`;
+          } else if (entry.type === 'voice') {
+            el.innerHTML = `<div style="font-weight:700">${entry.title}</div><small>${new Date(entry.created_at).toLocaleString()}</small><audio controls src="${entry.content}"></audio><p>Mood: ${entry.mood}</p><button class="delete-button" data-id="${entry.id}">Delete</button>`;
+          }
+          entriesEl.appendChild(el);
+        });
+    }
+
+    function renderTimeCapsules(entries) {
+      timeCapsulesList.innerHTML = '';
+      const now = new Date();
+      const searchTerm = searchInput.value.toLowerCase();
+
+      entries
+        .filter(entry => entry.is_capsule)
+        .filter(entry => {
+          const title = entry.title.toLowerCase();
+          if (new Date(entry.capsule_open_date) > now) {
+            return title.includes(searchTerm);
+          }
+          const content = entry.content.toLowerCase();
+          const mood = entry.mood.toLowerCase();
+          return title.includes(searchTerm) || content.includes(searchTerm) || mood.includes(searchTerm);
+        })
+        .forEach(entry => {
+          const el = document.createElement('div');
+          el.className = 'item';
+          const openDate = new Date(entry.capsule_open_date);
+          if (now < openDate) {
+            el.innerHTML = `<div style="font-weight:700">${entry.title}</div><small>Time Capsule | Opens on ${openDate.toLocaleDateString()}</small><p>This is a time capsule. The content is locked until the open date.</p><button class="delete-button" data-id="${entry.id}">Delete</button>`;
+          } else {
+            if (entry.type === 'text') {
+              el.innerHTML = `<div style="font-weight:700">${entry.title}</div><small>Time Capsule (Opened) | ${new Date(entry.created_at).toLocaleString()}</small><p>${entry.content}</p><p>Mood: ${entry.mood}</p><button class="delete-button" data-id="${entry.id}">Delete</button>`;
+            } else if (entry.type === 'voice') {
+              el.innerHTML = `<div style="font-weight:700">${entry.title}</div><small>Time Capsule (Opened) | ${new Date(entry.created_at).toLocaleString()}</small><audio controls src="${entry.content}"></audio><p>Mood: ${entry.mood}</p><button class="delete-button" data-id="${entry.id}">Delete</button>`;
+            }
+          }
+          timeCapsulesList.appendChild(el);
+        });
+    }
+
+    async function deleteEntry(id) {
+      const confirmation = confirm('Are you sure you want to delete this entry?');
+      if (confirmation) {
+        try {
+          const res = await fetch(`http://localhost:8080/entries/${id}`, {
+            method: 'DELETE'
+          });
+
+          if (res.ok) {
+            fetchEntries();
+          } else {
+            const data = await res.json();
+            alert(data.message);
+          }
+        } catch (err) {
+          console.error('Error deleting entry:', err);
+          alert('An error occurred while deleting the entry.');
+        }
+      }
+    }
+
+    entriesEl.addEventListener('click', (e) => {
+      if (e.target.classList.contains('delete-button')) {
+        const entryId = e.target.dataset.id;
+        deleteEntry(entryId);
+      }
+    });
+
+    timeCapsulesList.addEventListener('click', (e) => {
+      if (e.target.classList.contains('delete-button')) {
+        const entryId = e.target.dataset.id;
+        deleteEntry(entryId);
+      }
+    });
+
+    async function fetchInsights() {
+      try {
+        const res = await fetch(`http://localhost:8080/insights?userId=${userId}`);
+        const insights = await res.json();
+        renderMoodChart(insights);
+      } catch (err) {
+        console.error('Error fetching insights:', err);
+      }
+    }
+
+    let moodChartInstance = null; // To store the Chart.js instance
+
+    function renderMoodChart(insights) {
+      if (moodChartInstance) {
+        moodChartInstance.destroy(); // Destroy existing chart before creating a new one
+      }
+
+      const moodLabels = Object.keys(insights);
+      const moodCounts = Object.values(insights);
+
+      moodChartInstance = new Chart(moodChartCanvas, {
+        type: 'pie',
+        data: {
+          labels: moodLabels,
+          datasets: [{
+            label: 'Mood Distribution',
+            data: moodCounts,
+            backgroundColor: [
+              '#FFD700',
+              '#6495ED',
+              '#DC143C',
+              '#98FB98',
+              '#FFA500'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            title: {
+              display: true,
+              text: 'Your Mood Distribution'
+            }
+          }
+        }
+      });
+    }
+
+    // Initial fetches for the default active section (Dashboard)
+    fetchInsights();
+    fetchGarden(userId).then(gardenData => renderGarden(gardenData, moodGardenDashboard));
+    fetchEntries(); // Fetch entries initially to populate both entries list and time capsules list
+
+    // Voice Recording
+    const recordButton = document.getElementById('recordButton');
+    const stopButton = document.getElementById('stopButton');
+    const audioPlayback = document.getElementById('audioPlayback');
+    const saveVoiceNoteButton = document.getElementById('saveVoiceNoteButton');
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    recordButton.addEventListener('click', async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      audioChunks = [];
+
+      mediaRecorder.addEventListener('dataavailable', event => {
+        audioChunks.push(event.data);
+      });
+
+      recordButton.disabled = true;
+      stopButton.disabled = false;
+      saveVoiceNoteButton.disabled = true;
+    });
+
+    stopButton.addEventListener('click', () => {
+      mediaRecorder.stop();
+      recordButton.disabled = false;
+      stopButton.disabled = true;
+      saveVoiceNoteButton.disabled = false;
+
+      mediaRecorder.addEventListener('stop', () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioPlayback.src = audioUrl;
+      });
+    });
+
+    saveVoiceNoteButton.addEventListener('click', async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append('userId', userId);
+      formData.append('title', 'Voice Note'); // You can add a title field for voice notes if you want
+      formData.append('mood', 'default'); // You can add a mood field for voice notes if you want
+      formData.append('audio', audioBlob);
+
+      try {
+        const res = await fetch('http://localhost:8080/voice-entries', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          fetchEntries();
+          fetchGarden(userId).then(gardenData => {
+            renderGarden(gardenData, moodGardenDashboard);
+            renderGarden(gardenData, moodGardenStandalone);
+          });
+          fetchInsights();
+        } else {
+          const data = await res.json();
+          alert(data.message);
+        }
+      } catch (err) {
+        console.error('Error saving voice note:', err);
+        alert('An error occurred while saving the voice note.');
+      }
+    });
+  </script>
+</body>
+</html>

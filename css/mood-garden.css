@@ -1,0 +1,53 @@
+.mood-garden {
+  position: relative;
+  width: 100%;
+  height: 300px; /* Or as desired */
+  border-radius: 8px;
+  overflow: hidden;
+  transition: background-color 0.5s ease;
+}
+
+/* Environment backgrounds */
+.mood-garden.clearday { background: #87CEEB; }
+.mood-garden.overcast { background: #B0C4DE; }
+.mood-garden.rainy { background: #778899; }
+.mood-garden.starrynight { background: #000080; }
+
+.garden-vibe {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.2);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.garden-element {
+  position: absolute;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+.asset {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  font-size: 10px;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Asset styles */
+.asset.sunflower { background-color: #FFC300; }
+.asset.lavender { background-color: #967BB6; }
+.asset.hummingbird { background-color: #00A86B; border-radius: 10px; }
+.asset.weepingwillow { background-color: #A52A2A; }
+.asset.tangledvines { background-color: #556B2F; }
+.asset.thornybush { background-color: #8B0000; }
