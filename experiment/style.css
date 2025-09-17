@@ -1,4 +1,4 @@
-/* Google font */
+/* ---------------- Google Font ---------------- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 
 * {
@@ -8,13 +8,15 @@
   font-family: 'Poppins', sans-serif;
 }
 
+/* ---------------- Body ---------------- */
 body {
   display: flex;
   height: 100vh;
   background: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+  overflow-x: hidden;
 }
 
-/* Sidebar */
+/* ---------------- Sidebar ---------------- */
 .sidebar {
   width: 220px;
   background: linear-gradient(180deg, #667eea, #764ba2);
@@ -22,6 +24,8 @@ body {
   display: flex;
   flex-direction: column;
   padding: 20px;
+  transition: transform 0.3s ease-in-out;
+  z-index: 1000;
 }
 
 .sidebar .logo {
@@ -47,15 +51,16 @@ body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Main content */
+/* ---------------- Main Content ---------------- */
 main {
   flex: 1;
   background: #f9f9fc;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
 }
 
-/* Topbar */
+/* ---------------- Topbar ---------------- */
 .topbar {
   height: 60px;
   background: #fff;
@@ -74,15 +79,16 @@ main {
   font-size: 1rem;
 }
 
-/* Content area */
+/* ---------------- Content Area ---------------- */
 #content {
   flex: 1;
   padding: 20px;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
-/* Journal Section */
+/* ---------------- Journal Section ---------------- */
 .journal-container {
   display: flex;
   flex-direction: column;
@@ -130,11 +136,7 @@ main {
   border: none;
   outline: none;
   resize: vertical;
-  background: repeating-linear-gradient(
-    white,
-    white 28px,
-    #dcdcdc 29px
-  );
+  background: repeating-linear-gradient(white, white 28px, #dcdcdc 29px);
   border-radius: 8px;
   box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
 }
@@ -166,7 +168,7 @@ main {
   display: none;
 }
 
-/* Voice Note */
+/* ---------------- Voice Note ---------------- */
 .voice-msg {
   font-size: 1.2rem;
   margin: 20px 0 10px;
@@ -213,65 +215,132 @@ main {
   font-weight: 500;
   color: #555;
 }
-/* Hamburger menu button */
+
+/* ---------------- Hamburger menu ---------------- */
 .hamburger {
-  display: none; /* hidden by default (desktop) */
+  display: none;
   font-size: 1.8rem;
   background: none;
   border: none;
   cursor: pointer;
   margin-right: 15px;
   color: #333;
+  z-index: 1100;
 }
 
-/* Show hamburger only on small screens */
-@media (max-width: 992px) {
-  .hamburger {
-    display: block;
-  }
+/* Overlay for mobile */
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  z-index: 900;
 }
 
+.overlay.show {
+  display: block;
+}
 
-/* Responsive Sidebar */
+/* ---------------- Calendar Section ---------------- */
+.calendar {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.calendar-header h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.calendar-header button {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.calendar-header button:hover {
+  opacity: 0.9;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #555;
+}
+
+.calendar-dates {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.calendar-dates div {
+  background: #f9f9fc;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 0;
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.calendar-dates div:hover {
+  background: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.calendar-dates .today {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* ---------------- Responsive Design ---------------- */
+/* Tablets & below */
 @media (max-width: 992px) {
-  body {
-    flex-direction: column;
-  }
-
-  /* Sidebar hidden by default on small screens */
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
     transform: translateX(-100%);
-    z-index: 1000;
   }
 
   .sidebar.active {
     transform: translateX(0);
   }
 
-  /* Add overlay behind sidebar */
-  .overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.4);
-    z-index: 999;
-  }
-
-  .overlay.show {
-    display: block;
-  }
-
-  /* Show hamburger in topbar */
   .hamburger {
     display: block;
-    margin-right: 15px;
   }
 
   .topbar {
@@ -279,55 +348,51 @@ main {
   }
 }
 
-/* ---------------- Responsive Design ---------------- */
-@media (max-width: 992px) {
-  body {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .sidebar nav ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  main {
-    padding: 10px;
-  }
-}
-
+/* Mobile screens */
 @media (max-width: 768px) {
   .journal-header h2 {
     font-size: 1.3rem;
   }
+
   .date-box {
     font-size: 0.85rem;
     padding: 6px 12px;
   }
+
   .voice-controls {
     flex-direction: column;
   }
+
   .voice-controls button {
     width: 100%;
   }
+
+  .calendar-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .calendar-dates div {
+    font-size: 0.8rem;
+    padding: 8px 0;
+  }
 }
 
+/* Extra small screens */
 @media (max-width: 480px) {
   .sidebar {
     padding: 10px;
   }
+
   .sidebar .logo {
     font-size: 1.2rem;
   }
+
   .journal-container textarea {
     font-size: 0.9rem;
     line-height: 1.6rem;
     padding: 12px;
   }
+
   .journal-container button {
     font-size: 0.9rem;
     padding: 10px;
