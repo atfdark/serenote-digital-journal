@@ -1,6 +1,8 @@
-function loadCalendar() {
-  const content = document.getElementById("content");
-  content.innerHTML = `
+function loadCalendar(container) {
+  const calendarContainer = container;
+  if (!calendarContainer) return;
+
+  calendarContainer.innerHTML = `
     <div class="calendar-wrapper">
       <div class="calendar-header">
         <button id="prev">&#10094;</button>
@@ -35,23 +37,25 @@ function loadCalendar() {
       year: "numeric",
     });
 
-    // Clear previous dates
     grid.querySelectorAll(".date").forEach(d => d.remove());
+    // also remove empty slots
+    grid.querySelectorAll("div:not([class])").forEach(d => d.remove());
+
 
     const firstDay = new Date(year, month, 1).getDay();
     const lastDate = new Date(year, month + 1, 0).getDate();
 
-    // Empty slots before first date
     for (let i = 0; i < firstDay; i++) {
       const empty = document.createElement("div");
       grid.appendChild(empty);
     }
 
-    // Dates
     for (let d = 1; d <= lastDate; d++) {
-      const date = document.createElement("div");
-      date.classList.add("date");
-      date.textContent = d;
+      const dateEl = document.createElement("div");
+      dateEl.classList.add("date");
+      dateEl.textContent = d;
+      const date = new Date(year, month, d);
+      dateEl.dataset.date = date.toISOString().split('T')[0];
 
       let today = new Date();
       if (
@@ -59,10 +63,16 @@ function loadCalendar() {
         month === today.getMonth() &&
         year === today.getFullYear()
       ) {
-        date.classList.add("today");
+        dateEl.classList.add("today");
       }
 
-      grid.appendChild(date);
+      dateEl.addEventListener('click', (e) => {
+          const selectedDate = e.target.dataset.date;
+          localStorage.setItem('selectedDate', selectedDate);
+          document.querySelector('[data-page="journal"]').click();
+      });
+
+      grid.appendChild(dateEl);
     }
   }
 
@@ -78,23 +88,3 @@ function loadCalendar() {
 
   renderCalendar();
 }
-
-// Navigation integration
-const navItems = document.querySelectorAll(".sidebar nav ul li");
-navItems.forEach(item => {
-  item.addEventListener("click", () => {
-    navItems.forEach(i => i.classList.remove("active"));
-    item.classList.add("active");
-
-    const page = item.getAttribute("data-page");
-    if (page === "dashboard") {
-      loadCalendar();
-    } else if (page === "journal") {
-      document.getElementById("content").innerHTML = "<h1>📖 Journal</h1>";
-    } else if (page === "voice") {
-      document.getElementById("content").innerHTML = "<h1>🎙 Voice Notes</h1>";
-    } else if (page === "mood") {
-      document.getElementById("content").innerHTML = "<h1>🌱 Mood Garden</h1>";
-    }
-  });
-});

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Serenote – Dashboard</title>
+  <title>Serenote</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="calendar.css">
 </head>
@@ -13,10 +13,10 @@
     <div class="logo">Serenote</div>
     <nav>
       <ul>
-        <li class="active" data-page="dashboard">📅 Dashboard</li>
+        <li class="active" data-page="mood">🌱 Mood Garden</li>
+        <li data-page="dashboard">📅 Dashboard</li>
         <li data-page="journal">📖 Journal</li>
         <li data-page="voice">🎙 Voice Note</li>
-        <li data-page="mood">🌱 Mood Garden</li>
       </ul>
     </nav>
   </aside>
@@ -34,13 +34,16 @@
 
     <!-- Content area -->
     <section id="content">
-      <h1>Welcome to Serenote 🌸</h1>
-      <p>Select an option from the sidebar to get started.</p>
+      <!-- Content will be loaded here by script.js -->
     </section>
   </main>
 
   <!-- Scripts -->
-  <script src="script.js"></script>
   <script src="calendar.js"></script>
+  <script src="script.js"></script>
+  <script>
+    // Load the mood garden by default
+    document.querySelector('[data-page="mood"]').click();
+  </script>
 </body>
 </html>

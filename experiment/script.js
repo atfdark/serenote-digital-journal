@@ -1,139 +1,107 @@
-// Sidebar & overlay handling
+// Handle sidebar navigation
 const navItems = document.querySelectorAll(".sidebar nav ul li");
 const content = document.getElementById("content");
-const menuToggle = document.getElementById("menuToggle");
-const sidebar = document.querySelector(".sidebar");
-const overlay = document.getElementById("overlay");
+ const menuToggle = document.getElementById('menuToggle');
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('overlay');
 
-// Toggle sidebar
-menuToggle.addEventListener("click", () => {
-  sidebar.classList.toggle("active");
-  overlay.classList.toggle("show");
-});
 
-// Close sidebar when clicking overlay
-overlay.addEventListener("click", () => {
-  sidebar.classList.remove("active");
-  overlay.classList.remove("show");
-});
-
-// Close sidebar when navigation item is clicked
-navItems.forEach(item => {
-  item.addEventListener("click", () => {
-    sidebar.classList.remove("active");
-    overlay.classList.remove("show");
-  });
-});
-
-// ----------------- CALENDAR -----------------
-let currentDate = new Date();
-
-function renderCalendar() {
-  const monthNames = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ];
-  const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
-  const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-
-  let calendarHTML = `
-    <div class="calendar-container">
-      <div class="calendar-header">
-        <button id="prevBtn">&lt;</button>
-        <h2>${monthNames[month]} ${year}</h2>
-        <button id="nextBtn">&gt;</button>
-      </div>
-      <div class="calendar-grid">
-  `;
-
-  // Day names
-  dayNames.forEach(d => {
-    calendarHTML += `<div class="day-name">${d}</div>`;
+  // Toggle sidebar
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('show');
   });
 
-  // Empty slots for prev month
-  for (let i = 0; i < firstDayOfMonth; i++) {
-    calendarHTML += `<div class="calendar-day inactive"></div>`;
-  }
-
-  // Days of current month
-  for (let i = 1; i <= lastDayOfMonth; i++) {
-    const isToday =
-      i === today.getDate() &&
-      month === today.getMonth() &&
-      year === today.getFullYear()
-        ? "today"
-        : "";
-    calendarHTML += `<div class="calendar-day ${isToday}" data-day="${i}">${i}</div>`;
-  }
-
-  calendarHTML += `</div></div>`;
-  content.innerHTML = calendarHTML;
-
-  // Navigation buttons
-  document.getElementById("prevBtn").addEventListener("click", () => {
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    renderCalendar();
+  // Close when clicking overlay
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('show');
   });
 
-  document.getElementById("nextBtn").addEventListener("click", () => {
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    renderCalendar();
-  });
-
-  // Click on day → show journal for that date
-  document.querySelectorAll(".calendar-day:not(.inactive)").forEach(dayEl => {
-    dayEl.addEventListener("click", () => {
-      document.querySelectorAll(".calendar-day.selected").forEach(sel =>
-        sel.classList.remove("selected")
-      );
-      dayEl.classList.add("selected");
-
-      const selectedDate = `${monthNames[month]} ${dayEl.dataset.day}, ${year}`;
-
-      // Load journal page with selected date
-      loadJournal(selectedDate);
+  // Close when navigation item is clicked
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('show');
     });
   });
-}
 
-// ----------------- JOURNAL -----------------
-function loadJournal(dateString) {
-  content.innerHTML = `
-    <div class="journal-header">
-      <div class="date-box">📅 ${dateString}</div>
-      <h1>📖 Journal</h1>
-    </div>
-    <div class="journal-container">
-      <textarea id="journalEntry" placeholder="Dear Journal..."></textarea>
-      <button id="saveJournal">💾 Save Entry</button>
-      <p id="saveMsg" class="hidden">✅ Your journal entry has been saved!</p>
-    </div>
-  `;
+navItems.forEach(item => {
+  item.addEventListener("click", () => {
+    // remove active from all
+    navItems.forEach(i => i.classList.remove("active"));
+    // add active to current
+    item.classList.add("active");
 
-  // Load saved entry (unique per date)
-  const savedEntry = localStorage.getItem(`journalEntry-${dateString}`);
-  if (savedEntry) {
-    document.getElementById("journalEntry").value = savedEntry;
-  }
+    // load content
+    const page = item.getAttribute("data-page");
+    if (page === "dashboard") {
+      content.innerHTML = `
+        <div class="dashboard-grid">
+          <div class="dashboard-col-left">
+            <div id="calendar-container">
+              <!-- Calendar will be loaded here -->
+            </div>
+            <div id="recent-entries-container">
+              <h2>Recent Entries</h2>
+              <div class="recent-entry">
+                <p class="entry-title">A day of small wins</p>
+                <p class="entry-date">September 17, 2025</p>
+              </div>
+              <div class="recent-entry">
+                <p class="entry-title">Thinking about the future</p>
+                <p class="entry-date">September 15, 2025</p>
+              </div>
+              <div class="recent-entry">
+                <p class="entry-title">A challenging morning</p>
+                <p class="entry-date">September 14, 2025</p>
+              </div>
+            </div>
+          </div>
+          <div class="dashboard-col-right" id="dashboard-widgets">
+            <h2>Mood Tracker</h2>
+            <div class="widget-content">
+                <p>No mood data available.</p>
+            </div>
+          </div>
+        </div>
+      `;
+      loadCalendar(document.getElementById('calendar-container'));
+    } else if (page === "journal") {
+      const selectedDateStr = localStorage.getItem('selectedDate') || new Date().toISOString().split('T')[0];
+      const selectedDate = new Date(selectedDateStr);
+      // Add 1 day to the date to fix the timezone issue
+      selectedDate.setDate(selectedDate.getDate() + 1);
+      const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+      const formattedDate = selectedDate.toLocaleDateString("en-US", options);
 
-  document.getElementById("saveJournal").addEventListener("click", () => {
-    const entry = document.getElementById("journalEntry").value;
-    localStorage.setItem(`journalEntry-${dateString}`, entry);
+      content.innerHTML = `
+        <div class="journal-header">
+          <h1>📖 Journal for ${formattedDate}</h1>
+        </div>
+        <div class="journal-container">
+          <textarea id="journalEntry" placeholder="Dear Journal..."></textarea>
+          <button id="saveJournal">💾 Save Entry</button>
+          <p id="saveMsg" class="hidden">✅ Your journal entry has been saved!</p>
+        </div>
+      `;
 
-    const msg = document.getElementById("saveMsg");
-    msg.classList.remove("hidden");
-    setTimeout(() => msg.classList.add("hidden"), 2000);
-  });
-}
+      const entryKey = `journalEntry_${selectedDateStr}`;
+      const savedEntry = localStorage.getItem(entryKey);
+      if (savedEntry) {
+        document.getElementById("journalEntry").value = savedEntry;
+      }
 
-// ----------------- VOICE NOTES -----------------
-function loadVoiceNotes() {
+      document.getElementById("saveJournal").addEventListener("click", () => {
+        const entry = document.getElementById("journalEntry").value;
+        localStorage.setItem(entryKey, entry);
+
+        const msg = document.getElementById("saveMsg");
+        msg.classList.remove("hidden");
+        setTimeout(() => msg.classList.add("hidden"), 2000);
+      });
+    }
+ else if (page === "voice") {
   content.innerHTML = `
     <h1>🎙 Voice Notes</h1>
     <p class="voice-msg">🎤 Feel like sharing your thoughts?</p>
@@ -154,6 +122,7 @@ function loadVoiceNotes() {
   let audioContext, analyser, source, dataArray, animationId;
   let mediaRecorder, audioChunks = [], isRecording = false;
 
+  // Draw waveform
   function drawWave() {
     animationId = requestAnimationFrame(drawWave);
     analyser.getByteTimeDomainData(dataArray);
@@ -171,14 +140,21 @@ function loadVoiceNotes() {
     for (let i = 0; i < dataArray.length; i++) {
       let v = dataArray[i] / 128.0;
       let y = v * canvas.height / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+
       x += sliceWidth;
     }
+
     ctx.lineTo(canvas.width, canvas.height / 2);
     ctx.stroke();
   }
 
+  // Start recording
   document.getElementById("recordBtn").addEventListener("click", async () => {
     if (isRecording) return;
     try {
@@ -201,11 +177,12 @@ function loadVoiceNotes() {
       document.getElementById("voiceStatus").textContent = "🔴 Recording...";
       document.getElementById("pauseBtn").disabled = false;
       document.getElementById("saveBtn").disabled = false;
-    } catch {
+    } catch (err) {
       alert("Microphone access denied!");
     }
   });
 
+  // Pause recording
   document.getElementById("pauseBtn").addEventListener("click", () => {
     if (!isRecording) return;
     if (mediaRecorder.state === "recording") {
@@ -219,6 +196,7 @@ function loadVoiceNotes() {
     }
   });
 
+  // Save recording
   document.getElementById("saveBtn").addEventListener("click", () => {
     if (!isRecording) return;
     mediaRecorder.stop();
@@ -237,34 +215,14 @@ function loadVoiceNotes() {
     isRecording = false;
   });
 }
-
-// ----------------- NAVIGATION -----------------
-navItems.forEach(item => {
-  item.addEventListener("click", () => {
-    navItems.forEach(i => i.classList.remove("active"));
-    item.classList.add("active");
-
-    const page = item.getAttribute("data-page");
-    if (page === "dashboard") {
-      renderCalendar();
-    } else if (page === "journal") {
-      const today = new Date().toLocaleDateString("en-US", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric"
-      });
-      loadJournal(today);
-    } else if (page === "voice") {
-      loadVoiceNotes();
-    } else if (page === "mood") {
+ else if (page === "mood") {
       content.innerHTML = "<h1>🌱 Mood Garden</h1><p>Track your moods like a blooming garden.</p>";
     }
   });
 });
 
-// Search demo
+// Search bar functionality (demo)
 document.getElementById("searchBar").addEventListener("input", (e) => {
   const query = e.target.value.toLowerCase();
   content.innerHTML = `<h1>🔍 Searching...</h1><p>You searched for: <b>${query}</b></p>`;
 });
-
-// Initial load = dashboard
-renderCalendar();

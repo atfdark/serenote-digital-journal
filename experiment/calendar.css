@@ -26,7 +26,7 @@
 }
 
 .calendar-header h2 {
-  font-size: 1.4rem;
+  font-size: clamp(1rem, 4vw, 1.4rem); /* Fluid font size */
   font-weight: 600;
 }
 
@@ -55,10 +55,11 @@
   font-weight: 600;
   padding: 10px 0;
   border-bottom: 1px solid #ddd;
+  font-size: 0.9em;
 }
 
 .date {
-  padding: 20px 0;
+  padding: 15px 0;
   border: 1px solid #eee;
   transition: 0.3s;
   cursor: pointer;
@@ -73,12 +74,26 @@
   border-radius: 4px;
 }
 
-@media (max-width: 600px) {
+/* Responsive Calendar */
+@media (max-width: 768px) {
+  .day-name {
+    font-size: 0.8em;
+  }
   .date {
-    padding: 12px 0;
+    padding: 10px 0;
     font-size: 0.85rem;
   }
+}
+
+@media (max-width: 480px) {
   .calendar-header h2 {
     font-size: 1rem;
+  }
+  .day-name {
+    font-size: 0.7em;
+  }
+  .date {
+    padding: 8px 0;
+    font-size: 0.75rem;
   }
 }
