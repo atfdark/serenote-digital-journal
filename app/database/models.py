@@ -20,6 +20,7 @@ class Entry(Base):
     content = Column(Text)
     type = Column(String(50))   # text or voice
     mood = Column(String(50))
+    audio_path = Column(String(300), nullable=True)
     is_capsule = Column(Boolean, default=False)
     capsule_open_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
@@ -27,12 +28,16 @@ class Entry(Base):
     user = relationship("User", back_populates="entries")
 
 class Garden(Base):
-    __tablename__ = 'gardens'
+    __tablename__ = "gardens"
+
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
-    last_updated = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
+    last_updated = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     overall_vibe = Column(String(100))
-    environment = Column(Text)   # JSON string
-    elements = Column(Text)      # JSON string
+
+    # Garden progression data
+    growth_level = Column(Integer, default=0)   # how many “stages” filled
+    flowers = Column(Integer, default=0)        # how many flowers bloomed
+    trees = Column(Integer, default=0)          # optional future growth
 
     user = relationship("User", back_populates="garden")

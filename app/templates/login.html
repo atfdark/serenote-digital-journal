@@ -6,7 +6,7 @@
   <title>Serenote | Login & Register</title>
   <!-- Icon Library -->
   <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-  <link rel="stylesheet" href="../static/css/logsign.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/logsign.css') }}">
 </head>
 <body>
   <a href="/" class="back-home-btn"><i class='bx bx-home-alt'></i> Back to Home</a>
@@ -62,6 +62,6 @@
     </div>
   </div>
 
-  <script src="../static/js/logsi.js"></script>
+  <script src="{{ url_for('static', filename='js/logsi.js') }}"></script>
 </body>
 </html>
