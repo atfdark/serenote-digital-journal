@@ -343,10 +343,12 @@ main {
 /* New Journal List Styles */
 .journal-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column; /* stack date and heading */
+  align-items:start; /* center horizontally */
+  gap: 10px; /* space between date and heading */
   margin-bottom: 20px;
 }
+
 
 .btn-new-entry {
   background-color: #667eea;
@@ -463,7 +465,7 @@ main {
 }
 
 .dashboard-col-left {
-  flex: 2;
+  flex: 3;
   display: flex;
   flex-direction: column;
   gap: 20px;

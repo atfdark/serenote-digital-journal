@@ -68,39 +68,41 @@ navItems.forEach(item => {
       `;
       loadCalendar(document.getElementById('calendar-container'));
     } else if (page === "journal") {
-      const selectedDateStr = localStorage.getItem('selectedDate') || new Date().toISOString().split('T')[0];
-      const selectedDate = new Date(selectedDateStr);
-      // Add 1 day to the date to fix the timezone issue
-      selectedDate.setDate(selectedDate.getDate() + 1);
-      const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
-      const formattedDate = selectedDate.toLocaleDateString("en-US", options);
+  const selectedDateStr = localStorage.getItem('selectedDate') || new Date().toISOString().split('T')[0];
+  const selectedDate = new Date(selectedDateStr);
+  // Fix timezone offset
+  selectedDate.setDate(selectedDate.getDate() + 1);
+  const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+  const formattedDate = selectedDate.toLocaleDateString("en-US", options);
 
-      content.innerHTML = `
-        <div class="journal-header">
-          <h1>📖 Journal for ${formattedDate}</h1>
-        </div>
-        <div class="journal-container">
-          <textarea id="journalEntry" placeholder="Dear Journal..."></textarea>
-          <button id="saveJournal">💾 Save Entry</button>
-          <p id="saveMsg" class="hidden">✅ Your journal entry has been saved!</p>
-        </div>
-      `;
+  content.innerHTML = `
+    <div class="journal-header">
+      <div class="date-box">${formattedDate}</div>
+      <h1>📖 Journal</h1>
+    </div>
+    <div class="journal-container">
+      <textarea id="journalEntry" placeholder="Dear Journal..."></textarea>
+      <button id="saveJournal">💾 Save Entry</button>
+      <p id="saveMsg" class="hidden">✅ Your journal entry has been saved!</p>
+    </div>
+  `;
 
-      const entryKey = `journalEntry_${selectedDateStr}`;
-      const savedEntry = localStorage.getItem(entryKey);
-      if (savedEntry) {
-        document.getElementById("journalEntry").value = savedEntry;
-      }
+  const entryKey = `journalEntry_${selectedDateStr}`;
+  const savedEntry = localStorage.getItem(entryKey);
+  if (savedEntry) {
+    document.getElementById("journalEntry").value = savedEntry;
+  }
 
-      document.getElementById("saveJournal").addEventListener("click", () => {
-        const entry = document.getElementById("journalEntry").value;
-        localStorage.setItem(entryKey, entry);
+  document.getElementById("saveJournal").addEventListener("click", () => {
+    const entry = document.getElementById("journalEntry").value;
+    localStorage.setItem(entryKey, entry);
 
-        const msg = document.getElementById("saveMsg");
-        msg.classList.remove("hidden");
-        setTimeout(() => msg.classList.add("hidden"), 2000);
-      });
-    }
+    const msg = document.getElementById("saveMsg");
+    msg.classList.remove("hidden");
+    setTimeout(() => msg.classList.add("hidden"), 2000);
+  });
+}
+
  else if (page === "voice") {
   content.innerHTML = `
     <h1>🎙 Voice Notes</h1>
