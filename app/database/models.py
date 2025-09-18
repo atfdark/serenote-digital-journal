@@ -25,6 +25,7 @@ class Entry(Base):
     capsule_open_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
 
+
     user = relationship("User", back_populates="entries")
 
 class Garden(Base):
