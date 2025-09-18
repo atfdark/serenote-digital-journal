@@ -1,211 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Serenote - A Digital Sanctuary for the Mind</title>
-    <link rel="stylesheet" href="../static/css/style.css" />
-  </head>
-  <body>
-    <!-- Header -->
-    <header class="header">
-      <div class="logo">
-        <img src="../static/assets/logo.png" alt="" class="logo-sere" />
-      </div>
-      <div id="clock" style="color: white; font-size: 1.2em; text-align: center; flex-grow: 1;"></div>
-      <a href="login.html"
-        ><button class="login-btn">Login</button></a
-      >
-    </header>
 
-    <!-- Hero Section -->
-    <section class="hero">
-      <img
-        src="../static/assets/serenote-hero.png"
-        alt="Peaceful digital sanctuary with nature elements for mindful journaling"
-        class="hero-image"
-      />
-      <div class="hero-overlay">
-        <h1 class="hero-title">
-          Serenote: A Digital<br />
-          Sanctuary for the<br />
-          Mind with a Floral<br />
-          Touch
-        </h1>
-        <a href="login.html">
-          <button class="register-btn">Let's Start</button></a
-        >
-      </div>
-    </section>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Serenote - A Digital Sanctuary for the Mind</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
 
-    <!-- Welcome Section -->
-    <section class="welcome">
-      <h2 class="welcome-title">Welcome</h2>
-      <p class="welcome-text">
-        Serenote is a mindful journaling platform designed to help you express,
-        reflect, and grow through voice and text. With features like emotion
-        capsules, a visual Mood Garden, and sentiment tagging, Serenote creates
-        a calm, private space to track your inner journey. Whether you're
-        journaling daily or unlocking past reflections, Serenote supports your
-        mental clarity with a soothing, secure experience.
-      </p>
-    </section>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="" class="logo-sere" />
+    </div>
+    <div id="clock" style="color: white; font-size: 1.2em; text-align: center; flex-grow: 1;"></div>
+    <a href="{{ url_for('views.login_page') }}">
+      <button class="login-btn">Login</button>
+  </a>
 
-    <!-- Features Section -->
-    <section class="features">
-      <div class="features-grid">
-        <!-- Text Journaling -->
-        <div class="feature-card">
-          <div class="feature-icon text-journal-icon">
-            <!-- <div class="journal-book"></div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <img src="{{ url_for('static', filename='assets/serenote-hero.png') }}"
+      alt="Peaceful digital sanctuary with nature elements for mindful journaling" class="hero-image" />
+    <div class="hero-overlay">
+      <h1 class="hero-title">
+        Serenote: A Digital<br />
+        Sanctuary for the<br />
+        Mind with a Floral<br />
+        Touch
+      </h1>
+      <a href="{{ url_for('views.login_page') }}">
+        <button class="register-btn">Let's Start</button></a>
+    </div>
+  </section>
+
+  <!-- Welcome Section -->
+  <section class="welcome">
+    <h2 class="welcome-title">Welcome</h2>
+    <p class="welcome-text">
+      Serenote is a mindful journaling platform designed to help you express,
+      reflect, and grow through voice and text. With features like emotion
+      capsules, a visual Mood Garden, and sentiment tagging, Serenote creates
+      a calm, private space to track your inner journey. Whether you're
+      journaling daily or unlocking past reflections, Serenote supports your
+      mental clarity with a soothing, secure experience.
+    </p>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="features-grid">
+      <!-- Text Journaling -->
+      <div class="feature-card">
+        <div class="feature-icon text-journal-icon">
+          <!-- <div class="journal-book"></div>
                     <div class="journal-pen"></div> -->
-            <img
-              src="../static/assets/Text-img.png"
-              alt="Text Journaling"
-              class="text-logo"
-            />
-          </div>
-          <h3 class="feature-title">Text Journaling</h3>
+          <img src="../static/assets/Text-img.png" alt="Text Journaling" class="text-logo" />
         </div>
-
-        <!-- Voice Journaling -->
-        <div class="feature-card">
-          <div class="feature-icon voice-journal-icon">
-            <div class="microphone">
-              <img
-                src="../static/assets/voice-img.png"
-                alt="Voice Journaling"
-                class="voice-sere"
-              />
-            </div>
-          </div>
-          <h3 class="feature-title">Voice Journaling</h3>
-        </div>
-
-        <!-- Time Capsule -->
-        <div class="feature-card">
-          <div class="feature-icon time-capsule-icon">
-            <div class="capsule">
-              <img
-                src="../static/assets/TimeCapsule.png"
-                alt="Time Capsule"
-                class="capsu"
-              />
-            </div>
-          </div>
-          <h3 class="feature-title">Time Capsule</h3>
-        </div>
-
-        <!-- Mood Garden -->
-        <div class="feature-card">
-          <div class="feature-icon mood-garden-icon">
-            <img
-              src="../static/assets/MoodGarden.png"
-              alt="Mood Garden"
-              class="mood-garden"
-            />
-          </div>
-          <h3 class="feature-title">Mood Garden</h3>
-        </div>
+        <h3 class="feature-title">Text Journaling</h3>
       </div>
-    </section>
 
-    <!-- Detailed Feature Descriptions Section -->
-    <section class="detailed-features">
-      <div class="container">
-        <h2 class="section-title">Discover Your Inner Sanctuary</h2>
-
-        <div class="feature-detail">
-          <div class="feature-detail-content">
-            <h3>Text-based Journaling</h3>
-            <p>
-              At its core, Serenote naturally provides a serene, private space
-              for traditional, Text-based Journaling. This feature is the
-              foundation for expressing emotions, documenting daily events, and
-              reflecting on personal thoughts. The platform's soothing design
-              and comprehensive tools create an environment that encourages
-              guided prompts, create a supportive environment to help you
-              articulate and understand your inner world.
-            </p>
+      <!-- Voice Journaling -->
+      <div class="feature-card">
+        <div class="feature-icon voice-journal-icon">
+          <div class="microphone">
+            <img src="../static/assets/voice-img.png" alt="Voice Journaling" class="voice-sere" />
           </div>
         </div>
-
-        <div class="feature-detail">
-          <div class="feature-detail-content">
-            <h3>Voice Journaling</h3>
-            <p>
-              The pressure of slow typing feels like a burden, Voice Journaling
-              provides an effortless alternative. It allows you to simply speak
-              your thoughts and feelings aloud, offering a raw and immediate way
-              to unburden your mind. This feature captures the nuances of your
-              voice and emotions, providing a personal and authentic release
-              without the pressure of finding the right words to write.
-            </p>
-          </div>
-        </div>
-
-        <div class="feature-detail">
-          <div class="feature-detail-content">
-            <h3>Time Capsule</h3>
-            <p>
-              The Time Capsule feature adds a poetic and forward-looking
-              dimension to journaling. It allows you to seal away thoughts,
-              memories, or feelings into Emotion Capsules that can be opened at
-              a future date you set. This creates a unique way to be opened at a
-              future date you set. This creates a unique emotional and gain
-              perspective on your personal growth journey over time.
-            </p>
-          </div>
-        </div>
-
-        <div class="feature-detail">
-          <div class="feature-detail-content">
-            <h3>Mood Garden</h3>
-            <p>
-              The Mood Garden is a beautiful and innovative feature that
-              visually represents your emotional journey. As you log your moods,
-              your garden grows and transforms with different emotions and
-              experiences. This feature turns the often abstract process of mood
-              tracking into a tangible and engaging experience, allowing you to
-              see your emotional landscape flourish and evolve in a unique,
-              personalized visual metaphor.
-            </p>
-          </div>
-        </div>
+        <h3 class="feature-title">Voice Journaling</h3>
       </div>
-    </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <!-- Call-to-Action Section -->
-      <section class="cta-section">
-        <div class="container">
-          <h2>Begin Your Journey to Inner Peace</h2>
+      <!-- Time Capsule -->
+      <div class="feature-card">
+        <div class="feature-icon time-capsule-icon">
+          <div class="capsule">
+            <img src="../static/assets/TimeCapsule.png" alt="Time Capsule" class="capsu" />
+          </div>
+        </div>
+        <h3 class="feature-title">Time Capsule</h3>
+      </div>
+
+      <!-- Mood Garden -->
+      <div class="feature-card">
+        <div class="feature-icon mood-garden-icon">
+          <img src="../static/assets/MoodGarden.png" alt="Mood Garden" class="mood-garden" />
+        </div>
+        <h3 class="feature-title">Mood Garden</h3>
+      </div>
+    </div>
+  </section>
+
+  <!-- Detailed Feature Descriptions Section -->
+  <section class="detailed-features">
+    <div class="container">
+      <h2 class="section-title">Discover Your Inner Sanctuary</h2>
+
+      <div class="feature-detail">
+        <div class="feature-detail-content">
+          <h3>Text-based Journaling</h3>
           <p>
-            Join thousands who have found clarity and calm through mindful
-            journaling
+            At its core, Serenote naturally provides a serene, private space
+            for traditional, Text-based Journaling. This feature is the
+            foundation for expressing emotions, documenting daily events, and
+            reflecting on personal thoughts. The platform's soothing design
+            and comprehensive tools create an environment that encourages
+            guided prompts, create a supportive environment to help you
+            articulate and understand your inner world.
           </p>
-          <div class="cta-buttons">
-            <button class="cta-primary">Start Your Free Journey</button>
-            <button class="cta-secondary">Learn More</button>
-          </div>
         </div>
-      </section>
-      <p>
-        &copy; 2024 Serenote. Your digital sanctuary for mindful reflection.
-      </p>
-    </footer>
-    <script>
-      function updateTime() {
-        const now = new Date();
-        const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-        const hours = istTime.getHours().toString().padStart(2, '0');
-        const minutes = istTime.getMinutes().toString().padStart(2, '0');
-        const seconds = istTime.getSeconds().toString().padStart(2, '0');
-        document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds} IST`;
-      }
-      setInterval(updateTime, 1000);
-      updateTime();
-    </script>
-  </body>
+      </div>
+
+      <div class="feature-detail">
+        <div class="feature-detail-content">
+          <h3>Voice Journaling</h3>
+          <p>
+            The pressure of slow typing feels like a burden, Voice Journaling
+            provides an effortless alternative. It allows you to simply speak
+            your thoughts and feelings aloud, offering a raw and immediate way
+            to unburden your mind. This feature captures the nuances of your
+            voice and emotions, providing a personal and authentic release
+            without the pressure of finding the right words to write.
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-detail">
+        <div class="feature-detail-content">
+          <h3>Time Capsule</h3>
+          <p>
+            The Time Capsule feature adds a poetic and forward-looking
+            dimension to journaling. It allows you to seal away thoughts,
+            memories, or feelings into Emotion Capsules that can be opened at
+            a future date you set. This creates a unique way to be opened at a
+            future date you set. This creates a unique emotional and gain
+            perspective on your personal growth journey over time.
+          </p>
+        </div>
+      </div>
+
+      <div class="feature-detail">
+        <div class="feature-detail-content">
+          <h3>Mood Garden</h3>
+          <p>
+            The Mood Garden is a beautiful and innovative feature that
+            visually represents your emotional journey. As you log your moods,
+            your garden grows and transforms with different emotions and
+            experiences. This feature turns the often abstract process of mood
+            tracking into a tangible and engaging experience, allowing you to
+            see your emotional landscape flourish and evolve in a unique,
+            personalized visual metaphor.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <!-- Call-to-Action Section -->
+    <section class="cta-section">
+      <div class="container">
+        <h2>Begin Your Journey to Inner Peace</h2>
+        <p>
+          Join thousands who have found clarity and calm through mindful
+          journaling
+        </p>
+        <div class="cta-buttons">
+          <button class="cta-primary">Start Your Free Journey</button>
+          <button class="cta-secondary">Learn More</button>
+        </div>
+      </div>
+    </section>
+    <p>
+      &copy; 2024 Serenote. Your digital sanctuary for mindful reflection.
+    </p>
+  </footer>
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      const hours = istTime.getHours().toString().padStart(2, '0');
+      const minutes = istTime.getMinutes().toString().padStart(2, '0');
+      const seconds = istTime.getSeconds().toString().padStart(2, '0');
+      document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds} IST`;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+  </script>
+</body>
+
 </html>

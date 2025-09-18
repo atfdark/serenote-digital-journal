@@ -1,3 +1,5 @@
+// static/js/logsi.js (Corrected)
+
 const wrapper = document.querySelector(".wrapper");
 const loginLink = document.getElementById("loginLink");
 const signupLink = document.getElementById("signupLink");
@@ -22,6 +24,7 @@ function showMessage(formElement, message, isError = false) {
   }
 }
 
+// (Password toggle function remains the same, no changes needed here)
 function togglePasswordVisibility(passField, toggleIcon) {
   if (passField.type === "password") {
     passField.type = "text";
@@ -31,10 +34,10 @@ function togglePasswordVisibility(passField, toggleIcon) {
     toggleIcon.classList.replace("bxs-show", "bxs-hide");
   }
 }
-
 document.getElementById("toggleLoginPass").addEventListener("click", () => togglePasswordVisibility(document.getElementById("loginPass"), document.getElementById("toggleLoginPass")));
 document.getElementById("toggleRegPass").addEventListener("click", () => togglePasswordVisibility(document.getElementById("regPass"), document.getElementById("toggleRegPass")));
 document.getElementById("toggleRegPass2").addEventListener("click", () => togglePasswordVisibility(document.getElementById("regPass2"), document.getElementById("toggleRegPass2")));
+
 
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -42,7 +45,8 @@ loginForm.addEventListener("submit", async (e) => {
   const password = document.getElementById("loginPass").value.trim();
 
   try {
-    const res = await fetch('http://localhost:8080/login', {
+    // --- FIX #1: Correct URL for login ---
+    const res = await fetch('/auth/login', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
@@ -54,7 +58,8 @@ loginForm.addEventListener("submit", async (e) => {
       localStorage.setItem('userId', data.userId);
       showMessage(loginForm, data.message, false);
       setTimeout(() => {
-        window.location.href = 'mainpage.html'; 
+        // --- FIX #2: Redirect to the Flask ROUTE, not the file ---
+        window.location.href = '/main'; 
       }, 1000);
     } else {
       showMessage(loginForm, data.message, true);
@@ -64,6 +69,7 @@ loginForm.addEventListener("submit", async (e) => {
     showMessage(loginForm, "A network error occurred. Please try again.", true);
   }
 });
+
 
 registerForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -81,7 +87,8 @@ registerForm.addEventListener("submit", async (e) => {
   }
 
   try {
-    const res = await fetch('http://localhost:8080/register', {
+    // --- FIX #3: Correct URL for registration ---
+    const res = await fetch('/auth/register', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
@@ -90,7 +97,11 @@ registerForm.addEventListener("submit", async (e) => {
     const data = await res.json();
 
     if (res.ok) {
-      window.location.href = 'registration-success.html';
+      showMessage(registerForm, "Registration successful! Redirecting to login...", false);
+      setTimeout(() => {
+        // --- FIX #4: Redirect to the login page after successful registration ---
+        window.location.href = '/login';
+      }, 2000); // Wait 2 seconds before redirecting
     } else {
       showMessage(registerForm, data.message, true);
     }

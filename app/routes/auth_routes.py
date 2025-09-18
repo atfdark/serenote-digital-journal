@@ -8,19 +8,19 @@ auth_routes = Blueprint("auth", __name__)
 @auth_routes.route("/register", methods=["POST"])
 def register():
     data = request.json
-    if not data.get("username") or not data.get("password"):
-        return jsonify({"message": "Username and password required"})
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"message": "Username and password are required"}), 400
 
     if db_session.query(User).filter_by(username=data["username"]).first():
-        return jsonify({"message": "Username already exists"})
+        return jsonify({"message": "Username already exists"}), 409 # Conflict
 
-    user = User(
-        username=data["username"],
-        password=generate_password_hash(data["password"])
-    )
+    user = User(username=username, password=generate_password_hash(password))
     db_session.add(user)
     db_session.commit()
-    return jsonify({"message": "User registered successfully"})
+    return jsonify({"message": "User registered successfully"}), 201
 
 
 @auth_routes.route("/login", methods=["POST"])
@@ -28,5 +28,5 @@ def login():
     data = request.json
     user = db_session.query(User).filter_by(username=data.get("username")).first()
     if user and check_password_hash(user.password, data["password"]):
-        return jsonify({"message": "Login successful", "userId": user.id})
-    return jsonify({"message": "Invalid credentials"})
+        return jsonify({"message": "Login successful", "userId": user.id}), 200
+    return jsonify({"message": "Invalid username or password"}), 401 # Unauthorized
