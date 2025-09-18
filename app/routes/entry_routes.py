@@ -11,8 +11,13 @@ entry_routes = Blueprint("entry", __name__)
 
 @entry_routes.route("/add", methods=["POST"])
 def add_text_entry():
+    """Adds a new text-based journal entry."""
     data = request.json
-    user_id, title, content, mood = data.get("user_id"), data.get("title"), data.get("content"), data.get("mood", "Neutral")
+    user_id = data.get("user_id")
+    title = data.get("title")
+    content = data.get("content")
+    mood = data.get("mood", "Neutral")   # 👈 allow mood from frontend
+
     if not all([user_id, title, content]):
         return jsonify({"message": "Missing required fields"}), 400
 

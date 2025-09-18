@@ -1,27 +1,18 @@
-// =================================================================
-// JavaScript with MINIMAL changes to fix ONLY the voice note saving
-// =================================================================
-
-// Handle sidebar navigation
 const navItems = document.querySelectorAll(".sidebar nav ul li");
 const content = document.getElementById("content");
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.querySelector('.sidebar');
 const overlay = document.getElementById('overlay');
 
-// Toggle sidebar
+// Sidebar toggle
 menuToggle.addEventListener('click', () => {
     sidebar.classList.toggle('active');
     overlay.classList.toggle('show');
 });
-
-// Close when clicking overlay
 overlay.addEventListener('click', () => {
     sidebar.classList.remove('active');
     overlay.classList.remove('show');
 });
-
-// Close when navigation item is clicked
 navItems.forEach(item => {
     item.addEventListener('click', () => {
         sidebar.classList.remove('active');
@@ -29,36 +20,23 @@ navItems.forEach(item => {
     });
 });
 
+// Navigation
 navItems.forEach(item => {
     item.addEventListener("click", () => {
-        // remove active from all
         navItems.forEach(i => i.classList.remove("active"));
-        // add active to current
         item.classList.add("active");
-
-        // load content
         const page = item.getAttribute("data-page");
-        
-        // --- FIX: Added backticks (`) around your HTML strings to fix syntax errors ---
+
+        // ---------------- DASHBOARD ----------------
         if (page === "dashboard") {
             content.innerHTML = `
                 <div class="dashboard-grid">
                   <div class="dashboard-col-left">
-                    <div id="calendar-container">
-                      </div>
+                    <div id="calendar-container"></div>
                     <div id="recent-entries-container">
                       <h2>Recent Entries</h2>
-                      <div class="recent-entry">
-                        <p class="entry-title">A day of small wins</p>
-                        <p class="entry-date">September 17, 2025</p>
-                      </div>
-                      <div class="recent-entry">
-                        <p class="entry-title">Thinking about the future</p>
-                        <p class="entry-date">September 15, 2025</p>
-                      </div>
-                      <div class="recent-entry">
-                        <p class="entry-title">A challenging morning</p>
-                        <p class="entry-date">September 14, 2025</p>
+                      <div id="recent-entries-list">
+                        <p>Loading entries...</p>
                       </div>
                     </div>
                   </div>
@@ -69,43 +47,199 @@ navItems.forEach(item => {
                     </div>
                   </div>
                 </div>
-              `;
+            `;
             loadCalendar(document.getElementById('calendar-container'));
-        } else if (page === "journal") {
+
+            // ✅ Fetch entries dynamically from backend
+            const userId = localStorage.getItem("userId");
+            fetch(`/entries/user/${userId}`)
+                .then(res => res.json())
+                .then(entries => {
+                    const container = document.getElementById("recent-entries-list");
+                    container.innerHTML = "";
+                    if (!entries || entries.length === 0) {
+                        container.innerHTML = "<p>No entries yet.</p>";
+                        return;
+                    }
+                    entries.slice(0, 5).forEach(entry => {
+                        const div = document.createElement("div");
+                        div.classList.add("recent-entry");
+
+                        if (entry.type === "text") {
+                            div.innerHTML = `
+                            <p class="entry-title">📝 ${entry.title}</p>
+                            <p class="entry-date">${new Date(entry.created_at).toLocaleDateString()}</p>
+                            <p>${entry.content.substring(0, 50)}...</p>
+                          `;
+                        } else if (entry.type === "voice") {
+                            div.innerHTML = `
+                            <p class="entry-title">🎙 ${entry.title}</p>
+                            <p class="entry-date">${new Date(entry.created_at).toLocaleDateString()}</p>
+                            <audio controls style="width:100%; margin-top:5px;">
+                                <source src="/${entry.audio_path}" type="audio/webm">
+                                Your browser does not support audio.
+                            </audio>
+                          `;
+                        }
+
+                        container.appendChild(div);
+                    });
+                })
+                .catch(err => {
+                    console.error("❌ Failed to load entries:", err);
+                    document.getElementById("recent-entries-list").innerHTML =
+                        "<p>Error loading entries.</p>";
+                });
+        }
+
+        else if (page === "journal") {
             const selectedDateStr = localStorage.getItem('selectedDate') || new Date().toISOString().split('T')[0];
-            const selectedDate = new Date(selectedDateStr);
-            // Fix timezone offset
-            selectedDate.setDate(selectedDate.getDate() + 1);
-            const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
-            const formattedDate = selectedDate.toLocaleDateString("en-US", options);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const formattedDate = new Date(selectedDateStr).toLocaleDateString("en-US", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric"
+            });
 
             content.innerHTML = `
                 <div class="journal-header">
                   <div class="date-box">${formattedDate}</div>
-                  <h1>📖 Journal</h1>
+                  <h2>📖 Journal</h2>
                 </div>
-                <div class="journal-container">
-                  <textarea id="journalEntry" placeholder="Dear Journal..."></textarea>
-                  <button id="saveJournal">💾 Save Entry</button>
-                  <p id="saveMsg" class="hidden">✅ Your journal entry has been saved!</p>
+                <div class="journal-container" id="journalContainer">
+                  <p>Loading entries...</p>
                 </div>
-              `;
+            `;
 
-            const entryKey = `journalEntry_${selectedDateStr}`;
-            const savedEntry = localStorage.getItem(entryKey);
-            if (savedEntry) {
-                document.getElementById("journalEntry").value = savedEntry;
-            }
+            const userId = localStorage.getItem("userId");
 
-            document.getElementById("saveJournal").addEventListener("click", () => {
-                const entry = document.getElementById("journalEntry").value;
-                localStorage.setItem(entryKey, entry);
+            fetch(`/entries/user/${userId}`)
+                .then(res => res.json())
+                .then(entries => {
+                    const container = document.getElementById("journalContainer");
+                    container.innerHTML = "";
 
-                const msg = document.getElementById("saveMsg");
-                msg.classList.remove("hidden");
-                setTimeout(() => msg.classList.add("hidden"), 2000);
-            });
-        } else if (page === "voice") {
+                    // ✅ Writing area only for TODAY
+                    if (selectedDateStr === todayStr) {
+                        const writeBox = document.createElement("div");
+                        writeBox.innerHTML = `
+                        <input id="journalTitle" placeholder="Entry title..." 
+                               style="margin-bottom:10px; padding:10px; border-radius:6px; border:1px solid #ccc; width:100%;" />
+                        <textarea id="journalEntry" placeholder="Dear Journal..."></textarea>
+                        
+                        <!-- Mood dropdown -->
+                        <label for="moodSelect" style="margin-top:10px;">Mood:</label>
+                        <select id="moodSelect" style="margin-left:10px; padding:6px; border-radius:6px; border:1px solid #ccc;">
+                          <option value="Happy">😊 Happy</option>
+                          <option value="Sad">😔 Sad</option>
+                          <option value="Excited">🤩 Excited</option>
+                          <option value="Calm">😌 Calm</option>
+                          <option value="Angry">😡 Angry</option>
+                          <option value="Neutral" selected>😐 Neutral</option>
+                        </select>
+        
+                        <button id="saveJournal">💾 Save Entry</button>
+                        <p id="saveMsg" class="hidden">✅ Your journal entry has been saved!</p>
+                        <hr style="margin:20px 0;">
+                      `;
+                        container.appendChild(writeBox);
+
+                        // Save journal
+                        document.getElementById("saveJournal").addEventListener("click", () => {
+                            const title = document.getElementById("journalTitle").value || "Untitled";
+                            const contentText = document.getElementById("journalEntry").value;
+                            const mood = document.getElementById("moodSelect").value;
+
+                            if (!contentText.trim()) {
+                                alert("Please write something before saving.");
+                                return;
+                            }
+
+                            const payload = {
+                                user_id: userId,
+                                title: title,
+                                content: contentText,
+                                mood: mood
+                            };
+
+                            fetch("/entries/add", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload)
+                            })
+                                .then(res => res.json())
+                                .then(data => {
+                                    console.log("✅ Journal saved:", data);
+                                    const msg = document.getElementById("saveMsg");
+                                    msg.classList.remove("hidden");
+                                    setTimeout(() => msg.classList.add("hidden"), 2000);
+                                })
+                                .catch(err => {
+                                    console.error("❌ Failed to save journal:", err);
+                                    alert("Failed to save entry.");
+                                });
+                        });
+                    } else {
+                        // Past/future → read-only notice
+                        const notice = document.createElement("p");
+                        notice.style.color = "gray";
+                        notice.innerText = "🔒 You can only write/edit on today's date. Past entries are view-only.";
+                        container.appendChild(notice);
+                        container.appendChild(document.createElement("hr"));
+                    }
+
+                    // ✅ Show entries of selected day (fix: date compare properly with local date)
+                    const filtered = entries.filter(e => {
+                        const entryDate = new Date(e.created_at).toISOString().split("T")[0];
+                        return entryDate === selectedDateStr;
+                    });
+
+                    if (filtered.length === 0) {
+                        const noData = document.createElement("p");
+                        noData.innerText = "No entries for this day.";
+                        container.appendChild(noData);
+                    } else {
+                        filtered.forEach(entry => {
+                            const div = document.createElement("div");
+                            div.classList.add("journal-entry");
+
+                            if (entry.type === "text") {
+                                div.innerHTML = `
+                                  <div class="entry-header">
+                                    <h3>${entry.title}</h3>
+                                    <time>${new Date(entry.created_at).toLocaleTimeString()}</time>
+                                  </div>
+                                  <p>${entry.content}</p>
+                                  <div class="entry-footer">
+                                    <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                                  </div>
+                              `;
+                            } else if (entry.type === "voice") {
+                                div.innerHTML = `
+                                  <div class="entry-header">
+                                    <h3>${entry.title}</h3>
+                                    <time>${new Date(entry.created_at).toLocaleTimeString()}</time>
+                                  </div>
+                                  <audio controls style="width:100%;">
+                                    <source src="/${entry.audio_path}" type="audio/webm">
+                                  </audio>
+                                  <div class="entry-footer">
+                                    <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                                  </div>
+                              `;
+                            }
+                            container.appendChild(div);
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("❌ Failed to load entries:", err);
+                    document.getElementById("journalContainer").innerHTML = "<p>Error loading entries.</p>";
+                });
+        }
+
+
+
+        // ---------------- VOICE ----------------
+        else if (page === "voice") {
             content.innerHTML = `
                 <h1>🎙 Voice Notes</h1>
                 <p class="voice-msg">🎤 Feel like sharing your thoughts?</p>
@@ -118,15 +252,15 @@ navItems.forEach(item => {
                   <button id="deleteBtn" title="Delete" disabled>🗑</button>
                 </div>
                 <p id="voiceStatus"></p>
-              `;
+            `;
+
             const canvas = document.getElementById("waveform");
             const ctx = canvas.getContext("2d");
             canvas.width = content.clientWidth - 60;
             canvas.height = 150;
 
             let audioContext, analyser, source, dataArray, animationId;
-            let mediaRecorder, audioChunks = [],
-                isRecording = false;
+            let mediaRecorder, audioChunks = [], isRecording = false;
 
             function drawWave() {
                 animationId = requestAnimationFrame(drawWave);
@@ -141,11 +275,7 @@ navItems.forEach(item => {
                 for (let i = 0; i < dataArray.length; i++) {
                     let v = dataArray[i] / 128.0;
                     let y = v * canvas.height / 2;
-                    if (i === 0) {
-                        ctx.moveTo(x, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                     x += sliceWidth;
                 }
                 ctx.lineTo(canvas.width, canvas.height / 2);
@@ -159,9 +289,7 @@ navItems.forEach(item => {
                 if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                     mediaRecorder.stop();
                 }
-                if (audioContext) {
-                    audioContext.close();
-                }
+                if (audioContext) audioContext.close();
                 document.getElementById("recordBtn").disabled = false;
                 document.getElementById("pauseBtn").disabled = true;
                 document.getElementById("stopBtn").disabled = true;
@@ -175,7 +303,7 @@ navItems.forEach(item => {
                 if (isRecording) return;
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    audioContext = new(window.AudioContext || window.webkitAudioContext)();
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     analyser = audioContext.createAnalyser();
                     source = audioContext.createMediaStreamSource(stream);
                     source.connect(analyser);
@@ -191,7 +319,6 @@ navItems.forEach(item => {
                     document.getElementById("recordBtn").disabled = true;
                     document.getElementById("pauseBtn").disabled = false;
                     document.getElementById("stopBtn").disabled = false;
-                    // Note: Save is enabled on Stop, not on Record
                     document.getElementById("deleteBtn").disabled = false;
                 } catch (err) {
                     alert("Microphone access denied!");
@@ -206,13 +333,11 @@ navItems.forEach(item => {
                     cancelAnimationFrame(animationId);
                     document.getElementById("voiceStatus").textContent = "⏸ Paused";
                     pauseBtn.innerHTML = "▶";
-                    pauseBtn.title = "Resume";
                 } else if (mediaRecorder.state === "paused") {
                     mediaRecorder.resume();
                     drawWave();
                     document.getElementById("voiceStatus").textContent = "🔴 Recording...";
                     pauseBtn.innerHTML = "⏸";
-                    pauseBtn.title = "Pause";
                 }
             });
 
@@ -222,26 +347,23 @@ navItems.forEach(item => {
                 isRecording = false;
                 cancelAnimationFrame(animationId);
                 document.getElementById("voiceStatus").textContent = "⏹ Stopped. Ready to save.";
-                document.getElementById("saveBtn").disabled = false; // Enable save after stopping
+                document.getElementById("saveBtn").disabled = false;
             });
-            
+
             document.getElementById("deleteBtn").addEventListener("click", () => {
                 resetVoiceRecorder();
                 document.getElementById("voiceStatus").textContent = "🗑 Deleted.";
             });
 
-            // --- START OF THE ONLY FUNCTIONAL CHANGE ---
-            // The 'Save' button now UPLOADS the file to your Flask server
+            // ✅ Upload voice note
             document.getElementById("saveBtn").addEventListener("click", () => {
                 if (audioChunks.length === 0) {
                     document.getElementById("voiceStatus").textContent = "⚠️ Nothing to save.";
                     return;
                 }
-
                 const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
                 const formData = new FormData();
                 formData.append("user_id", localStorage.getItem("userId"));
-                // --- FIX: Added quotes and backticks to fix syntax error ---
                 formData.append("title", `Voice Note - ${new Date().toLocaleString()}`);
                 formData.append("mood", "Voice");
                 formData.append("audio", audioBlob, "voicenote.webm");
@@ -252,43 +374,41 @@ navItems.forEach(item => {
                     method: "POST",
                     body: formData
                 })
-                .then(res => {
-                    if (!res.ok) {
-                        return res.json().then(err => { throw new Error(err.message) });
-                    }
-                    return res.json();
-                })
-                .then(data => {
-                    console.log("✅ Voice note saved:", data);
-                    document.getElementById("voiceStatus").textContent = "✅ Voice note uploaded successfully!";
-                    resetVoiceRecorder();
-                })
-                .catch(err => {
-                    console.error("❌ Upload failed:", err);
-                    document.getElementById("voiceStatus").textContent = `❌ Upload failed!`;
-                });
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log("✅ Voice note saved:", data);
+                        document.getElementById("voiceStatus").textContent = "✅ Uploaded!";
+                        resetVoiceRecorder();
+                    })
+                    .catch(err => {
+                        console.error("❌ Upload failed:", err);
+                        document.getElementById("voiceStatus").textContent = "❌ Upload failed!";
+                    });
             });
-            // --- END OF THE ONLY FUNCTIONAL CHANGE ---
-            
-        } else if (page === "mood") {
+        }
+
+        // ---------------- MOOD ----------------
+        else if (page === "mood") {
             content.innerHTML = "<h1>🌱 Mood Garden</h1><p>Track your moods like a blooming garden.</p>";
-        } else if (page === "logout") {
-            // --- FIX: Clear user session and redirect properly ---
+        }
+
+        // ---------------- LOGOUT ----------------
+        else if (page === "logout") {
             localStorage.removeItem('userId');
             window.location.href = "/login";
         }
     });
 });
 
+// Search
 document.getElementById("searchBar").addEventListener("input", (e) => {
     const query = e.target.value.toLowerCase();
-    // --- FIX: Added backticks (`) to fix syntax error ---
     content.innerHTML = `<h1>🔍 Searching...</h1><p>You searched for: <b>${query}</b></p>`;
 });
 
+// Calendar
 function loadCalendar(container) {
     if (!container) return;
-    // --- FIX: Added backticks (`) to fix syntax error ---
     container.innerHTML = `
         <div class="calendar-wrapper">
           <div class="calendar-header">
@@ -297,7 +417,9 @@ function loadCalendar(container) {
             <button id="next">&#10095;</button>
           </div>
           <div class="calendar-grid" id="calendarGrid">
-            <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div><div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>
+            <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div>
+            <div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div>
+            <div class="day-name">Sat</div>
           </div>
         </div>`;
     const monthYear = document.getElementById("monthYear");
@@ -310,12 +432,13 @@ function loadCalendar(container) {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         monthYear.textContent = currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-        grid.innerHTML = '<div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div><div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>';
+        grid.innerHTML = `
+            <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div>
+            <div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div>
+            <div class="day-name">Sat</div>`;
         const firstDay = new Date(year, month, 1).getDay();
         const lastDate = new Date(year, month + 1, 0).getDate();
-        for (let i = 0; i < firstDay; i++) {
-            grid.appendChild(document.createElement("div"));
-        }
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement("div"));
         for (let d = 1; d <= lastDate; d++) {
             const dateEl = document.createElement("div");
             dateEl.classList.add("date");
@@ -333,15 +456,7 @@ function loadCalendar(container) {
             grid.appendChild(dateEl);
         }
     }
-    prev.addEventListener("click", () => {
-        currentDate.setMonth(currentDate.getMonth() - 1);
-        renderCalendar();
-    });
-    next.addEventListener("click", () => {
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        renderCalendar();
-    });
+    prev.addEventListener("click", () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+    next.addEventListener("click", () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
     renderCalendar();
 }
-
-// --- FIX: REMOVED THE DISCONNECTED/DUPLICATE CODE THAT WAS HERE ---
