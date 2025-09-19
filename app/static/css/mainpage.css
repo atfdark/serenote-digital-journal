@@ -676,3 +676,11 @@ main {
     box-shadow: 0 0 0 0 transparent;
   }
 }
+
+/* Mood Chart Styling */
+#moodChart {
+  width: 100% !important;
+  max-width: 400px;
+  margin: 0 auto;
+  display: block;
+}
