@@ -37,7 +37,10 @@
       const now = new Date();
       this.render({
         title: `Untitled Entry #${this.count}`,
-        time: now.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
+        time: now.toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
       });
     },
     init() {
@@ -55,7 +58,10 @@
       const m = date.getMonth();
       const today = new Date();
 
-      calMeta.textContent = date.toLocaleString(undefined, { month: "long", year: "numeric" });
+      calMeta.textContent = date.toLocaleString(undefined, {
+        month: "long",
+        year: "numeric",
+      });
 
       const firstDayOfMonth = new Date(y, m, 1);
       const startDayOfWeek = firstDayOfMonth.getDay();
@@ -69,7 +75,11 @@
         const cell = document.createElement("div");
         cell.className = "cal-cell";
         cell.textContent = d;
-        if (d === today.getDate() && m === today.getMonth() && y === today.getFullYear()) {
+        if (
+          d === today.getDate() &&
+          m === today.getMonth() &&
+          y === today.getFullYear()
+        ) {
           cell.classList.add("today");
           cell.setAttribute("aria-current", "date");
         }
@@ -96,10 +106,14 @@
         <button title="Remove task" aria-label="Remove '${trimmedText}'" style="border:none;background:transparent;cursor:pointer;opacity:.6">✕</button>
       `;
 
-      row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
-        row.classList.toggle("done", e.target.checked);
-      });
-      row.querySelector("button").addEventListener("click", () => row.remove());
+      row
+        .querySelector('input[type="checkbox"]')
+        .addEventListener("change", (e) => {
+          row.classList.toggle("done", e.target.checked);
+        });
+      row
+        .querySelector("button")
+        .addEventListener("click", () => row.remove());
 
       todoList.prepend(row);
     },
@@ -114,10 +128,76 @@
     },
   };
 
+  // --- Mood Chart Widget ---
+  const moodChartWidget = {
+    chart: null,
+    async init(userId) {
+      try {
+        const res = await fetch(`/dashboard/data/${userId}`);
+        const data = await res.json();
+
+        const labels = Object.keys(data);
+        const values = Object.values(data);
+
+        const ctx = document.getElementById("moodChart").getContext("2d");
+
+        if (this.chart) this.chart.destroy();
+
+        this.chart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                data: values,
+                backgroundColor: [
+                  "#ff6384", // Happy
+                  "#36a2eb", // Sad
+                  "#ffcd56", // Excited
+                  "#4bc0c0", // Calm
+                  "#9966ff", // Angry
+                  "#c9cbcf", // Neutral
+                ],
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            animation: {
+              animateRotate: true,
+              animateScale: true,
+              duration: 2000,
+            },
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  font: { size: 14 },
+                },
+              },
+            },
+          },
+        });
+      } catch (err) {
+        console.error("❌ Failed to load mood data:", err);
+        document.querySelector(
+          "#dashboard-widgets .widget-content"
+        ).innerHTML = "<p>No mood data available.</p>";
+      }
+    },
+  };
+
   // --- Initialize all widgets on page load ---
   document.addEventListener("DOMContentLoaded", () => {
     entriesWidget.init();
     calendarWidget.init();
     todoWidget.init();
+
+    // Initialize Mood Chart
+    const userId = localStorage.getItem("userId");
+    if (userId) {
+      moodChartWidget.init(userId);
+    }
   });
 })();

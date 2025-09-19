@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Serenote</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/mainpage.css') }}">
+  <!-- Chart.js CDN for pie chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
    <!-- Sidebar -->
@@ -36,12 +38,27 @@
 
     <!-- Content area -->
     <section id="content">
-      <!-- Content will be loaded here by script.js -->
+      <!-- Dashboard Page Example -->
+      <div class="dashboard-grid">
+        <div class="dashboard-col-left">
+          <div id="calendar-container"></div>
+          <div id="recent-entries-container"></div>
+        </div>
+        <div class="dashboard-col-right" id="dashboard-widgets">
+          <h2>Mood Tracker</h2>
+          <div class="widget-content">
+            <!-- Pie chart container -->
+            <canvas id="moodChart" width="400" height="400"></canvas>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
   <!-- Scripts -->
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>  <script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
     // Load the mood garden by default
     document.querySelector('[data-page="mood"]').click();
   </script>

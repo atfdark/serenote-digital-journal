@@ -9,10 +9,12 @@ dashboard_api = Blueprint("dashboard_api", __name__)
 def get_dashboard_data(user_id):
     """Provides mood data as JSON for the frontend chart."""
     
+    # The query now filters to only include entries where the type is 'text'
     mood_counts_query = db_session.query(
         Entry.mood, func.count(Entry.mood)
     ).filter(
-        Entry.user_id == user_id
+        Entry.user_id == user_id,
+        Entry.type == 'text'  # <-- THIS IS THE ONLY CHANGE
     ).group_by(Entry.mood).all()
 
     if not mood_counts_query:
