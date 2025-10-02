@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Serenote</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/mainpage.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mood-garden.css') }}">
   <!-- Chart.js CDN for pie chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -34,6 +35,7 @@
     <header class="topbar">
       <button class="hamburger" id="menuToggle">☰</button>
       <input type="text" id="searchBar" placeholder="Search your notes...">
+      <button id="darkModeToggle" class="dark-mode-btn">🌙</button>
     </header>
 
     <!-- Content area -->
@@ -48,7 +50,7 @@
           <h2>Mood Tracker</h2>
           <div class="widget-content">
             <!-- Pie chart container -->
-            <canvas id="moodChart" width="400" height="400"></canvas>
+            <canvas id="moodChart"></canvas>
           </div>
         </div>
       </div>
@@ -57,6 +59,7 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('static', filename='js/mood-garden.js') }}"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   <script>
     // Load the mood garden by default

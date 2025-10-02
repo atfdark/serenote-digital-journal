@@ -100,6 +100,7 @@ main {
     border-bottom: 1px solid #ddd;
     flex-shrink: 0;
     /* Prevent topbar from shrinking */
+    justify-content: space-between;
 }
 
 .topbar input {
@@ -111,6 +112,19 @@ main {
     font-size: 1rem;
 }
 
+.dark-mode-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: transform 0.2s;
+}
+
+.dark-mode-btn:hover {
+    transform: scale(1.1);
+}
+
 /* Content area */
 #content {
     flex: 1;
@@ -119,75 +133,146 @@ main {
     /* THIS is where scrolling happens */
 }
 
-/* calendar */
+/* Enhanced Calendar */
 .calendar-wrapper {
-    background: #fff;
-    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
     max-width: 100%;
+    border: 3px solid rgba(255,255,255,0.2);
+    animation: calendarSlideIn 1s ease-out;
 }
 
 .calendar-header {
-    background: linear-gradient(135deg, #ff416c, #ff4b2b);
+    background: linear-gradient(135deg, #ff6b6b, #feca57);
     color: #fff;
     text-align: center;
-    padding: 15px;
+    padding: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
 
 .calendar-header h2 {
-    font-size: clamp(1rem, 4vw, 1.4rem);
-    font-weight: 600;
+    font-size: clamp(1.2rem, 4vw, 1.6rem);
+    font-weight: 700;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    animation: bounceIn 1s ease-out;
 }
 
 .calendar-header button {
     border: none;
     background: rgba(255, 255, 255, 0.2);
     color: #fff;
-    font-size: 1.2rem;
-    padding: 6px 10px;
-    border-radius: 6px;
+    font-size: 1.4rem;
+    padding: 12px 16px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: 0.3s;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
 .calendar-header button:hover {
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
 }
 
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     text-align: center;
+    background: rgba(255,255,255,0.05);
 }
 
 .day-name {
-    background: #f8f8f8;
-    font-weight: 600;
-    padding: 10px 0;
-    border-bottom: 1px solid #ddd;
-    font-size: 0.9em;
+    background: rgba(255,255,255,0.1);
+    font-weight: 700;
+    padding: 15px 0;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+    font-size: 1em;
+    color: rgba(255,255,255,0.9);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .date {
-    padding: 15px 0;
-    border: 1px solid #eee;
-    transition: 0.3s;
+    padding: 20px 0;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     cursor: pointer;
+    font-weight: 600;
+    font-size: 1.1em;
+    position: relative;
+    overflow: hidden;
+}
+
+.date::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.date:hover::before {
+    left: 100%;
 }
 
 .date:hover {
-    background: #ffe5ec;
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    color: white;
 }
 
 .date.today {
-    background: #ff4b2b;
-    color: #fff;
-    font-weight: 600;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #FFC107, #FF8F00);
+    color: #333;
+    font-weight: 800;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(255, 193, 7, 0.5);
+    animation: todayPulse 2s ease-in-out infinite;
+    position: relative;
+}
+
+.date.today::after {
+    content: '📅';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.8em;
+    animation: sparkle 1.5s ease-in-out infinite;
+}
+
+@keyframes calendarSlideIn {
+    from { transform: translateY(50px) scale(0.9); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes todayPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 193, 7, 0.5); }
+    50% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 193, 7, 0.8); }
+}
+
+@keyframes sparkle {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(90deg) scale(1.1); }
+    50% { transform: rotate(180deg) scale(0.9); }
+    75% { transform: rotate(270deg) scale(1.1); }
 }
 
 /* Journal Section */
@@ -308,10 +393,122 @@ main {
 }
 
 /* ================= Voice Note ================= */
+.voice-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.voice-header h1 {
+    color: #333;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 .voice-msg {
     font-size: 1.2rem;
-    margin: 20px 0 10px;
+    margin: 10px 0 20px;
+    color: #666;
+    font-style: italic;
+}
+
+.voice-stats {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.voice-stats-card {
+    display: flex;
+    gap: 20px;
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(240, 147, 251, 0.3);
+    animation: fadeInUp 1s ease-out;
+}
+
+.voice-recorder-section {
+    background: linear-gradient(135deg, #f8f9ff, #e8f2ff);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.5);
+    animation: slideInUp 1s ease-out;
+}
+
+.waveform-container {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.recording-timer {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.record-btn { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.pause-btn { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+.save-btn { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+.delete-btn { background: linear-gradient(135deg, #34495e, #2c3e50); }
+.capsule-btn { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+
+.record-btn:hover, .pause-btn:hover, .save-btn:hover, .delete-btn:hover, .capsule-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.status-message {
+    text-align: center;
+    font-weight: 500;
+    margin: 15px 0;
+    min-height: 20px;
+}
+
+.recordings-section {
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(168, 237, 234, 0.3);
+    border: 2px solid rgba(255,255,255,0.3);
+    animation: slideInUp 1s ease-out 0.3s both;
+}
+
+.recordings-section h2 {
     color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+    background: linear-gradient(135deg, #ff9a9e, #fecfef);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 #waveform {
@@ -537,12 +734,19 @@ main {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
     z-index: 999;
 }
 
 .overlay.show {
     display: block;
+}
+
+/* Hide main content when sidebar is active on mobile */
+body.sidebar-active #content {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* ---------------- Responsive Design ---------------- */
@@ -568,6 +772,322 @@ main {
     .topbar {
         justify-content: flex-start;
     }
+
+    /* Stack dashboard grid on tablets and smaller */
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    /* Adjust chart container for smaller screens */
+    .widget-content {
+        padding: 15px;
+    }
+
+    #moodChart {
+        max-width: 100%;
+        height: auto !important;
+    }
+}
+
+/* Additional breakpoint for mobile phones */
+@media (max-width: 768px) {
+    .dashboard-grid {
+        padding: 10px;
+    }
+
+    .dashboard-col-left, .dashboard-col-right {
+        padding: 15px;
+    }
+
+    .calendar-wrapper {
+        max-width: 100%;
+    }
+
+    .calendar-header h2 {
+        font-size: clamp(1rem, 3vw, 1.4rem);
+    }
+
+    .voice-recorder-section, .recordings-section {
+        padding: 20px;
+    }
+
+    .journal-writing-area {
+        padding: 15px;
+    }
+
+    /* Ensure chart is fully responsive */
+    #moodChart {
+        width: 100% !important;
+        max-width: 100%;
+        height: 250px !important;
+    }
+
+    /* Adjust main content for mobile */
+    main {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    /* Improve topbar on mobile */
+    .topbar {
+        padding: 0 15px;
+    }
+
+    .topbar input {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+
+    /* Adjust sidebar width on mobile */
+    .sidebar {
+        width: 250px;
+    }
+
+    /* Better spacing for content */
+    #content {
+        padding: 15px;
+    }
+
+    /* Responsive mood garden */
+    .garden {
+        height: 50vh;
+    }
+
+    .mood-garden-container {
+        margin: 10px;
+        padding: 15px;
+    }
+
+    .mood-garden-container h1 {
+        font-size: 2em;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    .dashboard-grid {
+        padding: 5px;
+    }
+
+    .dashboard-col-left, .dashboard-col-right {
+        padding: 10px;
+    }
+
+    .calendar-header {
+        padding: 15px;
+    }
+
+    .calendar-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .calendar-grid {
+        font-size: 0.9rem;
+    }
+
+    .date {
+        padding: 15px 0;
+    }
+
+    /* Chart on very small screens */
+    #moodChart {
+        height: 200px !important;
+    }
+
+    .widget-content {
+        padding: 10px;
+    }
+
+    .topbar input {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+
+    .sidebar {
+        width: 220px;
+    }
+
+    .voice-controls button {
+        font-size: 0.9rem;
+        padding: 10px 15px;
+    }
+
+    .journal-writing-area textarea {
+        font-size: 0.9rem;
+    }
+
+    .garden {
+        height: 40vh;
+    }
+}
+
+/* Journal Stats */
+.journal-stats {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.journal-stats-card {
+    display: flex;
+    gap: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    animation: fadeInUp 1s ease-out;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2em;
+    font-weight: bold;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+/* Enhanced Journal Writing Area */
+.journal-writing-area {
+    background: linear-gradient(135deg, #f8f9ff, #e8f2ff);
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.5);
+    animation: slideInUp 1s ease-out;
+}
+
+.writing-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.writing-header h3 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.writing-prompt {
+    color: #666;
+    font-style: italic;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.journal-writing-area input[type="text"] {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1.1em;
+    margin-bottom: 15px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.journal-writing-area input[type="text"]:focus {
+    border-color: #667eea;
+}
+
+.journal-writing-area textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1em;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.3s;
+    background: repeating-linear-gradient(white, white 28px, #f0f0f0 29px);
+}
+
+.journal-writing-area textarea:focus {
+    border-color: #667eea;
+}
+
+.save-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.save-btn, .preview-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.save-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.preview-btn {
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    color: white;
+}
+
+.save-btn:hover, .preview-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Journal Preview Modal */
+.journal-preview-modal .modal-content {
+    animation: journalPreviewBounce 0.6s ease-out;
+}
+
+@keyframes journalPreviewBounce {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); }
+    70% { transform: scale(0.95); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.preview-content {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.preview-content h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.preview-content p {
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.preview-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.preview-date {
+    color: #666;
+    font-size: 0.9em;
 }
 
 /* New Journal List Styles */
@@ -654,49 +1174,169 @@ main {
 }
 
 .dashboard-grid {
-    display: flex;
-    gap: 20px;
-}
-
-.dashboard-col-left {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.dashboard-col-right {
-    flex: 1;
-    background-color: #fff;
-    border-radius: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
     padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    animation: fadeInUp 1s ease-out;
+}
+
+.dashboard-col-left, .dashboard-col-right {
+    background: rgba(255,255,255,0.95);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-col-left:hover, .dashboard-col-right:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+}
+
+.dashboard-col-right h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    text-align: center;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: slideInRight 1s ease-out;
+}
+
+.widget-content {
+    background: linear-gradient(135deg, #f8f9ff, #e8f2ff);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+    border: 1px solid rgba(255,255,255,0.5);
+}
+
+#insights-container {
+    margin-top: 25px;
+    animation: slideInLeft 1s ease-out 0.3s both;
+}
+
+#insights-container h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+    text-align: center;
+    background: linear-gradient(135deg, #ff6b6b, #feca57);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+#insights-list {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    border: 2px solid rgba(255,255,255,0.2);
+}
+
+#insights-list p {
+    margin: 12px 0;
+    padding: 12px 18px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border-left: 4px solid #FFC107;
+    animation: fadeInUp 0.8s ease-out both;
+}
+
+#insights-list p:nth-child(1) { animation-delay: 0.1s; }
+#insights-list p:nth-child(2) { animation-delay: 0.2s; }
+#insights-list p:nth-child(3) { animation-delay: 0.3s; }
+#insights-list p:nth-child(4) { animation-delay: 0.4s; }
+
+#insights-list p:hover {
+    transform: translateX(10px) scale(1.02);
+    background: rgba(255,255,255,0.25);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 
 #recent-entries-container {
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: linear-gradient(135deg, #a8edea, #fed6e3);
+    border-radius: 20px;
+    padding: 25px;
+    box-shadow: 0 10px 30px rgba(168, 237, 234, 0.3);
+    border: 2px solid rgba(255,255,255,0.3);
+    animation: slideInUp 1s ease-out;
+}
+
+#recent-entries-container h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.6em;
+    text-align: center;
+    background: linear-gradient(135deg, #ff9a9e, #fecfef);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .recent-entry {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
+    background: rgba(255,255,255,0.8);
+    border-radius: 15px;
+    padding: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border-left: 5px solid #667eea;
+    animation: fadeInLeft 0.6s ease-out both;
+}
+
+.recent-entry:hover {
+    transform: translateY(-5px) rotate(1deg);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    background: rgba(255,255,255,0.95);
 }
 
 .recent-entry:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
 }
 
 .entry-title {
     font-weight: bold;
     color: #333;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+    display: block;
 }
 
 .entry-date {
-    font-size: 0.9em;
+    font-size: 0.95em;
     color: #666;
+    font-style: italic;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeInLeft {
+    from { transform: translateX(-30px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
 /* Mood Chart Styling */
@@ -705,29 +1345,57 @@ main {
     max-width: 400px;
     margin: 0 auto;
     display: block;
+    height: 400px !important;
 }
 
-/* =========== NEW MOOD GARDEN STYLES =========== */
+/* =========== ENHANCED MOOD GARDEN STYLES =========== */
 .mood-garden-container {
     text-align: center;
     padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    margin: 20px;
+    color: white;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
+
+.mood-garden-container h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    animation: fadeInUp 1s ease-out;
+}
+
 .mood-garden-container p {
     max-width: 600px;
     margin: 10px auto 30px;
-    color: #555;
+    color: rgba(255,255,255,0.9);
     line-height: 1.6;
+    font-size: 1.1em;
 }
 
 .garden {
     position: relative;
     width: 100%;
-    height: 60vh;
-    background: linear-gradient(to top, #87CEEB 0%, #B2FFFF 100%);
-    border-radius: 12px;
+    height: 70vh;
+    background: linear-gradient(to bottom, #87CEEB 0%, #98FB98 50%, #228B22 100%);
+    border-radius: 20px;
     overflow: hidden;
-    border: 5px solid #fff;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border: 3px solid #4CAF50;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 0 50px rgba(255,255,255,0.1);
+    animation: gardenGrow 2s ease-out;
+}
+
+.garden::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(to bottom, rgba(135, 206, 235, 0.8) 0%, transparent 100%);
+    pointer-events: none;
+    animation: clouds 20s linear infinite;
 }
 
 .garden-empty {
@@ -737,45 +1405,294 @@ main {
     transform: translate(-50%, -50%);
     color: #555;
     font-weight: 500;
+    background: rgba(255,255,255,0.9);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes grow {
-    from { transform: scale(0) translateY(50px); opacity: 0; }
-    to { transform: scale(1) translateY(0); opacity: 1; }
+    from {
+        transform: scale(0) rotate(-180deg) translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) rotate(0deg) translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-3px) rotate(1deg); }
+    66% { transform: translateY(2px) rotate(-1deg); }
+}
+
+@keyframes gardenGrow {
+    from { transform: scaleY(0); opacity: 0; }
+    to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes clouds {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100px); }
+}
+
+@keyframes fadeInUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
 }
 
 .flower {
     position: absolute;
     cursor: pointer;
-    transition: transform 0.3s ease;
-    animation: grow 1.5s ease-out forwards;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: grow 2s ease-out forwards, float 4s ease-in-out infinite;
+    z-index: 10;
 }
 
 .flower:hover {
-    transform: scale(1.1);
+    transform: scale(1.3) translateY(-15px) !important;
+    z-index: 20;
+    filter: brightness(1.2);
+}
+
+.flower:nth-child(odd) {
+    animation-delay: 0s, 0s;
+}
+
+.flower:nth-child(even) {
+    animation-delay: 1s, 2s;
 }
 
 .flower-emoji {
-    text-shadow: 0 3px 5px rgba(0,0,0,0.2);
+    font-size: 3em;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5);
+    filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.4));
 }
 
 .mood-tooltip {
     position: absolute;
-    bottom: 100%;
+    bottom: 130%;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(0,0,0,0.7);
+    background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 14px;
+    padding: 15px 20px;
+    border-radius: 15px;
+    font-size: 16px;
+    font-weight: bold;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s, visibility 0.3s;
+    transition: all 0.4s ease;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    border: 3px solid white;
+    z-index: 30;
+}
+
+.mood-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 12px solid transparent;
+    border-top-color: #667eea;
 }
 
 .flower:hover .mood-tooltip {
     opacity: 1;
     visibility: visible;
+    transform: translateX(-50%) translateY(-10px);
+}
+
+/* Garden Stats and Actions */
+.garden-stats {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.stats-card {
+    background: rgba(255,255,255,0.9);
+    border-radius: 15px;
+    padding: 20px;
+    display: inline-block;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border: 2px solid rgba(255,255,255,0.3);
+}
+
+.stats-card h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1.3em;
+}
+
+.stats-card p {
+    margin: 8px 0;
+    color: #555;
+    font-weight: 500;
+}
+
+.garden-actions {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.garden-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.garden-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.garden-btn:active {
+    transform: translateY(-1px);
+}
+
+/* Flower Detail Modal */
+.flower-detail-modal .modal-content {
+    animation: flowerModalBounce 0.6s ease-out;
+}
+
+@keyframes flowerModalBounce {
+    0% { transform: scale(0.3); opacity: 0; }
+    50% { transform: scale(1.05); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    animation: slideInNotification 0.5s ease-out;
+}
+
+@keyframes slideInNotification {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutNotification {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Empty Chart State */
+.empty-chart {
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 15px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.empty-chart p {
+    margin: 10px 0;
+    color: #666;
+}
+
+/* Mood Detail Modal */
+.mood-detail-modal .modal-content {
+    animation: moodModalSlide 0.5s ease-out;
+}
+
+@keyframes moodModalSlide {
+    from { transform: translateY(-50px) scale(0.9); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Dark Mode */
+body.dark-mode {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #e0e0e0;
+}
+
+body.dark-mode .sidebar {
+    background: linear-gradient(180deg, #0f0f23, #1a1a2e);
+}
+
+body.dark-mode .topbar {
+    background: #2a2a3e;
+    border-bottom: 1px solid #444;
+}
+
+body.dark-mode .topbar input {
+    background: #3a3a4e;
+    border: 1px solid #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode #content {
+    background: #1e1e2e;
+}
+
+body.dark-mode .journal-container textarea {
+    background: repeating-linear-gradient(#2a2a3e, #2a2a3e 28px, #3a3a4e 29px);
+    color: #e0e0e0;
+}
+
+body.dark-mode .journal-entry {
+    background-color: #2a2a3e;
+    border: 1px solid #444;
+}
+
+body.dark-mode .calendar-wrapper {
+    background: #2a2a3e;
+}
+
+body.dark-mode .calendar-header {
+    background: linear-gradient(135deg, #ff416c, #ff4b2b);
+}
+
+body.dark-mode .day-name {
+    background: #3a3a4e;
+    border-bottom: 1px solid #555;
+}
+
+body.dark-mode .date {
+    border: 1px solid #555;
+}
+
+body.dark-mode .date:hover {
+    background: #3a3a4e;
+}
+
+body.dark-mode .dashboard-col-right {
+    background-color: #2a2a3e;
+}
+
+body.dark-mode .recent-entry {
+    border-bottom: 1px solid #555;
+}
+
+body.dark-mode .modal-content {
+    background: #2a2a3e;
+    color: #e0e0e0;
 }
