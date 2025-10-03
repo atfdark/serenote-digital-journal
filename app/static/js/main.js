@@ -1,4 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- IST Helper Function ---
+    function toIST(date) {
+        // Convert to IST (UTC+5:30)
+        const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+        const ist = new Date(utc + (5.5 * 3600000)); // 5.5 hours in milliseconds
+        return ist;
+    }
+
+    function formatDateIST(date, options = {}) {
+        return toIST(new Date(date)).toLocaleDateString('en-IN', options);
+    }
+
+    function formatTimeIST(date, options = {}) {
+        return toIST(new Date(date)).toLocaleTimeString('en-IN', options);
+    }
+
+    function formatDateTimeIST(date, options = {}) {
+        return toIST(new Date(date)).toLocaleString('en-IN', options);
+    }
+
     // --- API Helper ---
     const api = {
         async get(endpoint) {
@@ -50,6 +70,23 @@ document.addEventListener('DOMContentLoaded', () => {
         darkModeToggle.textContent = '☀️';
     }
 
+    // Search functionality
+    const searchBar = document.getElementById('searchBar');
+    let searchTimeout;
+    searchBar.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const query = e.target.value.toLowerCase().trim();
+            if (query) {
+                performSearch(query);
+            } else {
+                // Reload current page content
+                const currentPage = document.querySelector('.sidebar nav ul li.active').getAttribute('data-page');
+                loadPageContent(currentPage);
+            }
+        }, 300);
+    });
+
     darkModeToggle.addEventListener('click', () => {
         body.classList.toggle('dark-mode');
         const isDark = body.classList.contains('dark-mode');
@@ -89,7 +126,405 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadPageContent(page);
             }
         });
+
+        // Keyboard navigation
+        item.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                item.click();
+            }
+        });
+
+        // Make focusable
+        item.setAttribute("tabindex", "0");
     });
+
+    // Keyboard navigation for sidebar
+    let currentFocusIndex = -1;
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown" && document.activeElement.closest('.sidebar')) {
+            e.preventDefault();
+            const focusableItems = Array.from(navItems);
+            currentFocusIndex = (currentFocusIndex + 1) % focusableItems.length;
+            focusableItems[currentFocusIndex].focus();
+        } else if (e.key === "ArrowUp" && document.activeElement.closest('.sidebar')) {
+            e.preventDefault();
+            const focusableItems = Array.from(navItems);
+            currentFocusIndex = currentFocusIndex <= 0 ? focusableItems.length - 1 : currentFocusIndex - 1;
+            focusableItems[currentFocusIndex].focus();
+        }
+    });
+
+    // --- Export Functions ---
+    async function exportJournal() {
+        try {
+            const entries = await api.get(`/entries/user/${userId}`);
+            const textEntries = entries.filter(e => e.type === 'text');
+
+            // Initialize jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Set up colors matching site theme
+            const primaryColor = [102, 126, 234]; // #667eea
+            const secondaryColor = [118, 75, 162]; // #764ba2
+            const accentColor = [212, 175, 55]; // #d4af37
+
+            // Add cover page
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, 210, 297, 'F');
+
+            // Add title
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(30);
+            doc.setFont('helvetica', 'bold');
+            doc.text('My Journal', 105, 100, { align: 'center' });
+
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Serenote Export', 105, 120, { align: 'center' });
+
+            doc.setFontSize(12);
+            doc.text(`Exported on: ${formatDateTimeIST(new Date())}`, 105, 140, { align: 'center' });
+            doc.text(`Total Entries: ${textEntries.length}`, 105, 155, { align: 'center' });
+
+            // Add logo area (placeholder)
+            doc.setTextColor(...accentColor);
+            doc.setFontSize(10);
+            doc.text('✨ Serenote - Your Digital Journal Companion ✨', 105, 250, { align: 'center' });
+
+            let currentPage = 1;
+            let yPosition = 40;
+
+            // Process each entry
+            for (let i = 0; i < textEntries.length; i++) {
+                const entry = textEntries[i];
+
+                // Start new page for each entry (except first)
+                if (i > 0) {
+                    doc.addPage();
+                    currentPage++;
+                    yPosition = 40;
+                }
+
+                // Add header for each entry
+                doc.setFillColor(...secondaryColor);
+                doc.rect(0, 0, 210, 35, 'F');
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Entry ${i + 1}: ${entry.title || 'Untitled'}`, 20, 25);
+
+                // Reset text color for content
+                doc.setTextColor(0, 0, 0);
+
+                // Add metadata
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Date: ${formatDateTimeIST(entry.created_at)}`, 20, yPosition);
+                yPosition += 8;
+
+                doc.text(`Mood: ${entry.mood || 'Neutral'}`, 20, yPosition);
+                yPosition += 8;
+
+                if (entry.tags && entry.tags.length > 0) {
+                    doc.text(`Tags: ${entry.tags.join(', ')}`, 20, yPosition);
+                    yPosition += 12;
+                } else {
+                    yPosition += 4;
+                }
+
+                // Add decorative line
+                doc.setDrawColor(...accentColor);
+                doc.setLineWidth(0.5);
+                doc.line(20, yPosition, 190, yPosition);
+                yPosition += 10;
+
+                // Add content
+                doc.setFontSize(11);
+                const contentLines = doc.splitTextToSize(entry.content, 170);
+                const linesAdded = doc.text(contentLines, 20, yPosition);
+
+                // Calculate space used by content
+                const contentHeight = contentLines.length * 5;
+                yPosition += contentHeight + 15;
+
+                // Add images if they exist
+                if (entry.images && entry.images.length > 0) {
+                    for (const image of entry.images) {
+                        try {
+                            const img = new Image();
+                            img.src = image.data;
+
+                            await new Promise((resolve) => {
+                                img.onload = resolve;
+                            });
+
+                            // Calculate dimensions
+                            const maxWidth = 170;
+                            const maxHeight = 80;
+                            let imgWidth = img.width;
+                            let imgHeight = img.height;
+
+                            if (imgWidth > maxWidth) {
+                                imgHeight = (imgHeight * maxWidth) / imgWidth;
+                                imgWidth = maxWidth;
+                            }
+
+                            if (imgHeight > maxHeight) {
+                                imgWidth = (imgWidth * maxHeight) / imgHeight;
+                                imgHeight = maxHeight;
+                            }
+
+                            // Check if we need a new page
+                            if (yPosition + imgHeight > 250) {
+                                doc.addPage();
+                                currentPage++;
+                                yPosition = 40;
+                            }
+
+                            doc.addImage(img, 'JPEG', 20, yPosition, imgWidth, imgHeight);
+                            yPosition += imgHeight + 15;
+
+                        } catch (error) {
+                            console.error('Error adding image to PDF:', error);
+                        }
+                    }
+                }
+            }
+
+            // Add page numbers and footer to all pages
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+
+                // Add subtle background pattern to footer area
+                doc.setFillColor(248, 249, 255, 0.3);
+                doc.rect(0, 270, 210, 27, 'F');
+
+                // Add page number
+                doc.setTextColor(100, 100, 100);
+                doc.setFontSize(8);
+                doc.text(`Page ${i} of ${totalPages}`, 105, 285, { align: 'center' });
+
+                // Add branding
+                doc.setTextColor(...primaryColor);
+                doc.setFontSize(6);
+                doc.text('Generated by Serenote - Your Digital Journal Companion', 105, 290, { align: 'center' });
+            }
+
+            // Save the PDF
+            const fileName = `journal-export-${toIST(new Date()).toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+
+            showNotification('Journal exported as PDF successfully! 📄', 'success');
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showNotification('Failed to export journal as PDF', 'error');
+        }
+    }
+
+    async function exportSingleEntry(entryId) {
+        try {
+            const entries = await api.get(`/entries/user/${userId}`);
+            const entry = entries.find(e => e.id == entryId);
+
+            if (!entry) {
+                showNotification('Entry not found', 'error');
+                return;
+            }
+
+            // Initialize jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Set up colors matching site theme
+            const primaryColor = [102, 126, 234]; // #667eea
+            const secondaryColor = [118, 75, 162]; // #764ba2
+            const accentColor = [212, 175, 55]; // #d4af37
+
+            // Add header with site branding
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, 210, 30, 'F');
+
+            // Add logo/title
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(20);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Serenote', 20, 20);
+
+            // Add entry title
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text(entry.title || 'Untitled Entry', 20, 50);
+
+            let yPosition = 70;
+
+            // Add metadata
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Date: ${formatDateTimeIST(entry.created_at)}`, 20, yPosition);
+            yPosition += 10;
+
+            doc.text(`Mood: ${entry.mood || 'Neutral'}`, 20, yPosition);
+            yPosition += 10;
+
+            if (entry.tags && entry.tags.length > 0) {
+                doc.text(`Tags: ${entry.tags.join(', ')}`, 20, yPosition);
+                yPosition += 20;
+            } else {
+                yPosition += 10;
+            }
+
+            // Add decorative line
+            doc.setDrawColor(...accentColor);
+            doc.setLineWidth(1);
+            doc.line(20, yPosition, 190, yPosition);
+            yPosition += 15;
+
+            // Add content with proper formatting
+            doc.setFontSize(11);
+            const contentLines = doc.splitTextToSize(entry.content, 170);
+            doc.text(contentLines, 20, yPosition);
+
+            // Calculate new y position after content
+            const contentHeight = contentLines.length * 5;
+            yPosition += contentHeight + 20;
+
+            // Add images if they exist
+            if (entry.images && entry.images.length > 0) {
+                for (const image of entry.images) {
+                    try {
+                        // Create image element to get dimensions
+                        const img = new Image();
+                        img.src = image.data;
+
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                        });
+
+                        // Calculate dimensions to fit in PDF (max width 170, max height 100)
+                        const maxWidth = 170;
+                        const maxHeight = 100;
+                        let imgWidth = img.width;
+                        let imgHeight = img.height;
+
+                        if (imgWidth > maxWidth) {
+                            imgHeight = (imgHeight * maxWidth) / imgWidth;
+                            imgWidth = maxWidth;
+                        }
+
+                        if (imgHeight > maxHeight) {
+                            imgWidth = (imgWidth * maxHeight) / imgHeight;
+                            imgHeight = maxHeight;
+                        }
+
+                        // Check if we need a new page
+                        if (yPosition + imgHeight > 270) {
+                            doc.addPage();
+                            yPosition = 30;
+                        }
+
+                        // Add image to PDF
+                        doc.addImage(img, 'JPEG', 20, yPosition, imgWidth, imgHeight);
+                        yPosition += imgHeight + 15;
+
+                    } catch (error) {
+                        console.error('Error adding image to PDF:', error);
+                        // Continue without the image
+                    }
+                }
+            }
+
+            // Add footer with page number and branding
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+
+                // Add subtle background pattern
+                doc.setFillColor(248, 249, 255, 0.3); // Very light blue
+                doc.rect(0, 270, 210, 27, 'F');
+
+                // Add page number
+                doc.setTextColor(100, 100, 100);
+                doc.setFontSize(8);
+                doc.text(`Page ${i} of ${pageCount}`, 105, 285, { align: 'center' });
+
+                // Add branding
+                doc.setTextColor(...primaryColor);
+                doc.setFontSize(6);
+                doc.text('Generated by Serenote - Your Digital Journal Companion', 105, 290, { align: 'center' });
+            }
+
+            // Save the PDF
+            const fileName = `${(entry.title || 'Untitled').replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${toIST(new Date(entry.created_at)).toISOString().split('T')[0]}.pdf`;
+            doc.save(fileName);
+
+            showNotification('Entry exported as PDF successfully! 📄', 'success');
+        } catch (error) {
+            console.error('PDF export error:', error);
+            showNotification('Failed to export entry as PDF', 'error');
+        }
+    }
+
+    // --- Search Function ---
+    async function performSearch(query) {
+        try {
+            const entries = await api.get(`/entries/user/${userId}`);
+            const filteredEntries = entries.filter(entry =>
+                entry.title.toLowerCase().includes(query) ||
+                entry.content.toLowerCase().includes(query) ||
+                (entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(query)))
+            );
+
+            // Display search results
+            const container = document.getElementById("journalContainer") || content;
+            container.innerHTML = `<h3>🔍 Search Results for "${query}"</h3>`;
+
+            if (filteredEntries.length === 0) {
+                container.innerHTML += '<p>No entries found matching your search.</p>';
+                return;
+            }
+
+            filteredEntries.forEach(entry => {
+                const div = document.createElement("div");
+                div.classList.add("journal-entry");
+                div.dataset.entryId = entry.id;
+
+                const previewText = getContentPreview(entry.content);
+                div.innerHTML = `
+                    <div class="entry-header">
+                        <h3>${entry.title}</h3>
+                        <time>${formatDateIST(entry.created_at)}</time>
+                    </div>
+                    <div class="entry-content">
+                        <p class="content-preview">${previewText}</p>
+                    </div>
+                    <div class="entry-footer">
+                        <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                        ${entry.tags ? entry.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}
+                    </div>`;
+
+                container.appendChild(div);
+            });
+
+            // Add click handlers for search results
+            container.addEventListener('click', (e) => {
+                if (e.target.closest('.journal-entry')) {
+                    const entryId = e.target.closest('.journal-entry').dataset.entryId;
+                    const entry = filteredEntries.find(e => e.id == entryId);
+                    if (entry) {
+                        showJournalEntryModal(entry.title, entry.content, entry.mood, 'default', entry.created_at);
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('Search failed:', error);
+        }
+    }
 
     // --- Page Loader ---
     function showLoader() {
@@ -154,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     entryEl.className = 'recent-entry';
                     entryEl.innerHTML = `
                         <p class="entry-title">${entry.title}</p>
-                        <p class="entry-date">${new Date(entry.created_at).toLocaleDateString()}</p>`;
+                        <p class="entry-date">${formatDateIST(entry.created_at)}</p>`;
                     listEl.appendChild(entryEl);
                 });
             }
@@ -390,8 +825,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const statsEl = document.getElementById('journalStats');
         try {
             const entries = await api.get(`/entries/user/${userId}`);
-            const todayStr = new Date().toLocaleDateString("en-CA");
-            const todayEntries = entries.filter(e => new Date(e.created_at).toLocaleDateString("en-CA") === todayStr);
+            const todayStr = toIST(new Date()).toLocaleDateString("en-CA");
+            const todayEntries = entries.filter(e => toIST(new Date(e.created_at)).toLocaleDateString("en-CA") === todayStr);
             const totalEntries = entries.length;
             const todayCount = todayEntries.length;
 
@@ -417,9 +852,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadJournal() {
-        const selectedDateStr = localStorage.getItem('selectedDate') || new Date().toLocaleDateString("en-CA");
-        const todayStr = new Date().toLocaleDateString("en-CA");
-        const formattedDate = new Date(selectedDateStr).toLocaleDateString("en-US", {
+        const selectedDateStr = localStorage.getItem('selectedDate') || toIST(new Date()).toLocaleDateString("en-CA");
+        const todayStr = toIST(new Date()).toLocaleDateString("en-CA");
+        const formattedDate = toIST(new Date(selectedDateStr)).toLocaleDateString("en-US", {
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -428,14 +863,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         content.innerHTML = `
         <div class="journal-header">
-          <div class="date-box">${formattedDate}</div>
+          <div class="date-box">All Entries</div>
           <h2>📖 Journal</h2>
+          <div class="journal-actions">
+            <button id="exportJournal" class="export-btn">📄 Export</button>
+          </div>
           <div class="journal-stats" id="journalStats"></div>
         </div>
-        <div class="journal-container" id="journalContainer"><p>Loading entries...</p></div>`;
+        <div class="journal-container" id="journalContainer">
+          <div class="journal-page-number">Page 1</div>
+          <p>Loading entries...</p>
+        </div>`;
 
         // Load journal stats
         loadJournalStats();
+
+        // Export functionality
+        document.getElementById("exportJournal").addEventListener("click", () => {
+            exportJournal();
+        });
 
         fetch(`/entries/user/${userId}`)
             .then(res => res.json())
@@ -443,20 +889,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const container = document.getElementById("journalContainer");
                 container.innerHTML = "";
 
-                // --- Writing area only for today ---
-                if (selectedDateStr === todayStr) {
+                // --- Writing area always available ---
+                if (true) {
                     const writeBox = document.createElement("div");
                     writeBox.className = "journal-writing-area";
                     writeBox.innerHTML = `
                         <div class="writing-header">
                             <h3>✍️ Write Your Thoughts</h3>
                             <div class="writing-prompt" id="writingPrompt">What's on your mind today?</div>
+                            <button id="generatePrompt" class="generate-prompt-btn">🎲 Generate Writing Prompt</button>
                         </div>
                         <input id="journalTitle" placeholder="Give your entry a title..." />
+                        <input id="journalTags" placeholder="Add tags (comma separated): work, personal, goals..." />
                         <textarea id="journalEntry" placeholder="Start writing your journal entry here..."></textarea>
-                        <div class="mood-selector-container">
+                        <div class="selectors-container">
+                          <div class="mood-selector-container">
                             <label for="moodSelect">How are you feeling today?</label>
-                            <select id="moodSelect">
+                            <select id="moodSelect" aria-label="Select your current mood">
                               <option value="Happy">😊 Happy</option>
                               <option value="Sad">😔 Sad</option>
                               <option value="Excited">🤩 Excited</option>
@@ -464,6 +913,33 @@ document.addEventListener('DOMContentLoaded', () => {
                               <option value="Angry">😡 Angry</option>
                               <option value="Neutral" selected>😐 Neutral</option>
                             </select>
+                          </div>
+                          <div class="theme-selector-container">
+                            <label for="themeSelect">Choose your writing theme</label>
+                            <select id="themeSelect" aria-label="Select journal background theme">
+                              <option value="default" selected>📝 Default (Lined Paper)</option>
+                              <option value="nature">🌿 Nature</option>
+                              <option value="abstract">🎨 Abstract</option>
+                              <option value="minimalist">✨ Minimalist</option>
+                              <option value="custom">🖼️ Custom Upload</option>
+                            </select>
+                            <input type="file" id="customBgUpload" accept="image/*" style="display:none;" aria-label="Upload custom background image">
+                          </div>
+                          <div class="font-selector-container">
+                            <label for="fontSelect">Choose your font</label>
+                            <select id="fontSelect" aria-label="Select journal font">
+                              <option value="default" selected>✍️ Default</option>
+                              <option value="serif">📖 Serif</option>
+                              <option value="script">🖋️ Script</option>
+                              <option value="modern">💼 Modern</option>
+                            </select>
+                          </div>
+                          <div class="color-selector-container">
+                            <label for="textColorPicker">Text Color</label>
+                            <input type="color" id="textColorPicker" value="#333333" aria-label="Choose text color">
+                            <label for="bgColorPicker">Background Color</label>
+                            <input type="color" id="bgColorPicker" value="#ffffff" aria-label="Choose background color">
+                          </div>
                         </div>
                         <div class="capsule-container">
                             <label>
@@ -488,66 +964,254 @@ document.addEventListener('DOMContentLoaded', () => {
                         showJournalPreview(title, content, mood);
                     });
 
+                    // Writing prompts functionality
+                    const writingPrompts = [
+                        "What's one thing you're grateful for today?",
+                        "Describe a moment that made you smile recently.",
+                        "What would you tell your younger self?",
+                        "What's a challenge you're currently facing and how are you overcoming it?",
+                        "Describe your perfect day from start to finish.",
+                        "What's a skill you'd love to learn and why?",
+                        "Write about a person who has influenced your life.",
+                        "What's your favorite memory from childhood?",
+                        "If you could travel anywhere right now, where would you go and why?",
+                        "What's something you're looking forward to in the next month?",
+                        "Describe a time when you felt truly happy.",
+                        "What's a book, movie, or song that changed your perspective?",
+                        "Write about a goal you're working towards.",
+                        "What's something you wish you could tell someone but haven't?",
+                        "Describe your ideal morning routine."
+                    ];
+
+                    document.getElementById("generatePrompt").addEventListener("click", () => {
+                        const randomPrompt = writingPrompts[Math.floor(Math.random() * writingPrompts.length)];
+                        document.getElementById("writingPrompt").textContent = randomPrompt;
+                    });
+
                     // Capsule checkbox logic
                     document.getElementById("isCapsule").addEventListener("change", (e) => {
                         document.getElementById("capsuleDate").style.display = e.target.checked ? "block" : "none";
                     });
 
-                    document.getElementById("saveJournal").addEventListener("click", () => {
-                        const title = document.getElementById("journalTitle").value || "Untitled";
-                        const contentText = document.getElementById("journalEntry").value;
-                        const mood = document.getElementById("moodSelect").value;
-                        const isCapsule = document.getElementById("isCapsule").checked;
-                        const capsuleDate = document.getElementById("capsuleDate").value;
 
-                        if (!contentText.trim()) return alert("Please write something!");
-                        if (isCapsule && !capsuleDate) return alert("Please set a capsule open date!");
+                    // Theme selector logic
+                    const themeSelect = document.getElementById("themeSelect");
+                    const customBgUpload = document.getElementById("customBgUpload");
+                    const journalContainer = document.querySelector(".journal-writing-area");
 
-                        const payload = {
-                            user_id: userId,
-                            title,
-                            content: contentText,
-                            mood,
-                            is_capsule: isCapsule,
-                            capsule_open_date: isCapsule ? capsuleDate : null
-                        };
-                        api.post("/entries/add", payload)
-                            .then(async () => {
-                                const msg = document.getElementById("saveMsg");
-                                msg.classList.remove("hidden");
+                    // Font and color selectors
+                    const fontSelect = document.getElementById("fontSelect");
+                    const textColorPicker = document.getElementById("textColorPicker");
+                    const bgColorPicker = document.getElementById("bgColorPicker");
 
-                                // Update the mood garden with the new entry
-                                try {
-                                    await api.post("/garden/", {
-                                        user_id: userId,
-                                        mood: mood,
-                                        intensity: 1.0
-                                    });
+                    // Load saved preferences
+                    const savedTheme = localStorage.getItem('journalTheme') || 'default';
+                    const savedFont = localStorage.getItem('journalFont') || 'default';
+                    const savedTextColor = localStorage.getItem('journalTextColor') || '#333333';
+                    const savedBgColor = localStorage.getItem('journalBgColor') || '#ffffff';
 
-                                    // If mood garden is currently open, refresh it to show new flower
-                                    if (moodGardenInstance) {
-                                        await moodGardenInstance.loadGarden();
-                                        showNotification('🌸 New flower bloomed in your garden!', 'success');
-                                    }
-                                } catch (gardenErr) {
-                                    console.error("Garden update failed:", gardenErr);
-                                }
+                    themeSelect.value = savedTheme;
+                    fontSelect.value = savedFont;
+                    textColorPicker.value = savedTextColor;
+                    bgColorPicker.value = savedBgColor;
 
-                                // Generate AI messages based on content analysis
-                                try {
-                                    const aiResponse = await api.post("/entries/generate-prompts", { content: contentText, mood });
-                                    showEmotionBasedMessages(aiResponse.messages, aiResponse.detected_emotion, aiResponse.is_low_mood);
-                                } catch (err) {
-                                    console.error("AI analysis failed:", err);
-                                }
+                    applyTheme(savedTheme);
+                    applyFont(savedFont);
+                    applyColors(savedTextColor, savedBgColor);
 
-                                setTimeout(() => {
-                                    msg.classList.add("hidden");
-                                    loadJournal(); // Reload to see new entry
-                                }, 2000);
-                            })
-                            .catch(() => alert("Failed to save entry."));
+                    themeSelect.addEventListener("change", (e) => {
+                        const theme = e.target.value;
+                        localStorage.setItem('journalTheme', theme);
+                        applyTheme(theme);
+
+                        if (theme === 'custom') {
+                            customBgUpload.click();
+                        }
                     });
+
+                    customBgUpload.addEventListener("change", (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const imageUrl = event.target.result;
+                                localStorage.setItem('customBgImage', imageUrl);
+                                applyTheme('custom');
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    });
+
+                    // Font selector logic
+                    fontSelect.addEventListener("change", (e) => {
+                        const font = e.target.value;
+                        localStorage.setItem('journalFont', font);
+                        applyFont(font);
+                    });
+
+                    // Color picker logic
+                    textColorPicker.addEventListener("change", (e) => {
+                        const textColor = e.target.value;
+                        localStorage.setItem('journalTextColor', textColor);
+                        applyColors(textColor, bgColorPicker.value);
+                    });
+
+                    bgColorPicker.addEventListener("change", (e) => {
+                        const bgColor = e.target.value;
+                        localStorage.setItem('journalBgColor', bgColor);
+                        applyColors(textColorPicker.value, bgColor);
+                    });
+
+                    function applyTheme(theme) {
+                        // Reset to default
+                        journalEntry.style.background = '';
+                        journalContainer.style.background = '';
+                        journalEntry.style.backgroundImage = '';
+                        journalContainer.style.backgroundImage = '';
+
+                        switch(theme) {
+                            case 'default':
+                                journalEntry.style.background = 'repeating-linear-gradient(white, white 28px, rgba(139, 115, 85, 0.2) 29px)';
+                                journalEntry.style.border = '1px solid rgba(139, 115, 85, 0.3)';
+                                journalEntry.style.borderRadius = '5px';
+                                break;
+                            case 'nature':
+                                journalContainer.style.background = 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)';
+                                journalEntry.style.background = 'rgba(255, 255, 255, 0.9)';
+                                journalEntry.style.boxShadow = 'inset 0 0 20px rgba(76, 175, 80, 0.1)';
+                                // Add subtle leaf pattern
+                                journalEntry.style.backgroundImage = 'radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(76, 175, 80, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(76, 175, 80, 0.1) 0%, transparent 50%)';
+                                break;
+                            case 'abstract':
+                                journalContainer.style.background = 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)';
+                                journalEntry.style.background = 'rgba(255, 255, 255, 0.95)';
+                                // Add geometric pattern
+                                journalEntry.style.backgroundImage = 'linear-gradient(45deg, rgba(102, 126, 234, 0.1) 25%, transparent 25%), linear-gradient(-45deg, rgba(102, 126, 234, 0.1) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(118, 75, 162, 0.1) 75%), linear-gradient(-45deg, transparent 75%, rgba(118, 75, 162, 0.1) 75%)';
+                                journalEntry.style.backgroundSize = '20px 20px';
+                                break;
+                            case 'minimalist':
+                                journalContainer.style.background = '#fafafa';
+                                journalEntry.style.background = 'white';
+                                journalEntry.style.border = '1px solid #e0e0e0';
+                                journalEntry.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                                break;
+                            case 'custom':
+                                const customImage = localStorage.getItem('customBgImage');
+                                if (customImage) {
+                                    journalContainer.style.backgroundImage = `url(${customImage})`;
+                                    journalContainer.style.backgroundSize = 'cover';
+                                    journalContainer.style.backgroundPosition = 'center';
+                                    journalEntry.style.background = 'rgba(255, 255, 255, 0.9)';
+                                    journalEntry.style.backdropFilter = 'blur(10px)';
+                                }
+                                break;
+                        }
+                    }
+
+                    function applyFont(font) {
+                        switch(font) {
+                            case 'default':
+                                journalEntry.style.fontFamily = 'Poppins, sans-serif';
+                                break;
+                            case 'serif':
+                                journalEntry.style.fontFamily = 'Georgia, serif';
+                                break;
+                            case 'script':
+                                journalEntry.style.fontFamily = 'Dancing Script, cursive';
+                                break;
+                            case 'modern':
+                                journalEntry.style.fontFamily = 'Roboto, sans-serif';
+                                break;
+                        }
+                    }
+
+                    function applyColors(textColor, bgColor) {
+                        journalEntry.style.color = textColor;
+                        journalEntry.style.backgroundColor = bgColor;
+                        // Adjust border color based on background
+                        const isDarkBg = parseInt(bgColor.slice(1), 16) < 0x808080;
+                        journalEntry.style.borderColor = isDarkBg ? 'rgba(255,255,255,0.3)' : 'rgba(139, 115, 85, 0.3)';
+                    }
+
+document.getElementById("saveJournal").addEventListener("click", async () => {
+    const title = journalTitle.value || "Untitled";
+    const contentText = journalEntry.value;
+    const tags = document.getElementById("journalTags").value;
+    const mood = document.getElementById("moodSelect").value;
+    const isCapsule = document.getElementById("isCapsule").checked;
+    const capsuleDate = document.getElementById("capsuleDate").value;
+
+    if (!contentText.trim()) {
+        showNotification('Please write something!', 'error');
+        return;
+    }
+
+    if (isCapsule && !capsuleDate) {
+        showNotification('Please set a capsule open date!', 'error');
+        return;
+    }
+
+    // Show loading state
+    const saveBtn = document.getElementById("saveJournal");
+    const originalText = saveBtn.textContent;
+    saveBtn.textContent = "💾 Saving...";
+    saveBtn.disabled = true;
+
+    const payload = {
+        user_id: userId,
+        title,
+        content: contentText,
+        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+        mood,
+        is_capsule: isCapsule,
+        capsule_open_date: isCapsule ? capsuleDate : null
+    };
+
+    try {
+        await api.post("/entries/add", payload);
+
+        // Clear draft after successful save
+        localStorage.removeItem('journalDraft');
+
+        const msg = document.getElementById("saveMsg");
+        msg.classList.remove("hidden");
+
+        // Update the mood garden with the new entry
+        try {
+            await api.post("/garden/", {
+                user_id: userId,
+                mood: mood,
+                intensity: 1.0
+            });
+
+            // If mood garden is currently open, refresh it to show new flower
+            if (moodGardenInstance) {
+                await moodGardenInstance.loadGarden();
+                showNotification('🌸 New flower bloomed in your garden!', 'success');
+            }
+        } catch (gardenErr) {
+            console.error("Garden update failed:", gardenErr);
+        }
+
+        // Generate AI messages based on content analysis
+        try {
+            const aiResponse = await api.post("/entries/generate-prompts", { content: contentText, mood });
+            showEmotionBasedMessages(aiResponse.messages, aiResponse.detected_emotion, aiResponse.is_low_mood);
+        } catch (err) {
+            console.error("AI analysis failed:", err);
+        }
+
+        setTimeout(() => {
+            msg.classList.add("hidden");
+            loadJournal(); // Reload to see new entry
+        }, 2000);
+    } catch (error) {
+        showNotification('Failed to save entry. Please try again.', 'error');
+    } finally {
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+    }
+});
                 } else {
                     const notice = document.createElement("p");
                     notice.style.color = "gray";
@@ -556,11 +1220,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     container.appendChild(document.createElement("hr"));
                 }
 
-               // --- Show entries of selected day ---
-const filtered = entries.filter(e => {
-    const entryDate = new Date(e.created_at).toLocaleDateString("en-CA");
-    return entryDate === selectedDateStr;
-});
+               // --- Show all entries sorted by date (newest first) ---
+const filtered = entries
+    .filter(e => e.type === 'text')
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
 if (filtered.length === 0) {
     const noData = document.createElement("p");
@@ -572,15 +1235,16 @@ if (filtered.length === 0) {
         div.classList.add("journal-entry");
         div.dataset.entryId = entry.id;
 
-        const entryDateStr = new Date(entry.created_at).toLocaleDateString("en-CA");
+        const entryDateStr = toIST(new Date(entry.created_at)).toLocaleDateString("en-CA");
         const isToday = entryDateStr === todayStr;
         const now = new Date();
         const isLocked = entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now;
 
         let actionsHTML = "";
-        if (isToday && !isLocked) {
+        if (!isLocked) {
             actionsHTML = `<div class="entry-actions">
-                              <button class="btn-delete-entry" data-entry-id="${entry.id}">🗑️ Delete</button>
+                              <button class="btn-export-entry" data-entry-id="${entry.id}">📄 Export</button>
+                              ${isToday ? `<button class="btn-delete-entry" data-entry-id="${entry.id}">🗑️ Delete</button>` : ''}
                            </div>`;
         }
 
@@ -589,29 +1253,37 @@ if (filtered.length === 0) {
                 div.innerHTML = `
                   <div class="entry-header">
                     <h3>🔒 Time Capsule</h3>
-                    <time>Opens on ${new Date(entry.capsule_open_date).toLocaleString()}</time>
+                    <time>Opens on ${formatDateTimeIST(entry.capsule_open_date)}</time>
                   </div>
                   <p style="color: gray;">This capsule is locked until the specified date.</p>
                   <div class="entry-footer">
                     <span class="mood-tag">${entry.mood || "Neutral"}</span>
                   </div>`;
             } else {
-                div.innerHTML = `
-                  <div class="entry-header">
-                    <h3>${entry.title}</h3>
-                    <time>${new Date(entry.created_at).toLocaleTimeString()}</time>
-                  </div>
-                  <p>${entry.content}</p>
-                  <div class="entry-footer">
-                    <span class="mood-tag">${entry.mood || "Neutral"}</span>
-                    ${actionsHTML}
-                  </div>`;
-            }
+                    const previewText = getContentPreview(entry.content);
+                    const currentTheme = localStorage.getItem('journalTheme') || 'default';
+                    div.innerHTML = `
+                      <div class="entry-clickable" data-entry-id="${entry.id}" data-title="${entry.title}" data-content="${entry.content.replace(/"/g, '"')}" data-mood="${entry.mood || 'Neutral'}" data-theme="${currentTheme}" data-created="${entry.created_at}">
+                        <div class="entry-header">
+                          <h3>${entry.title}</h3>
+                          <time>${formatTimeIST(entry.created_at)}</time>
+                        </div>
+                        <div class="entry-content">
+                          <p class="content-preview">${previewText}</p>
+                        </div>
+                        <div class="entry-footer">
+                          <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                        </div>
+                      </div>
+                      <div class="entry-actions">
+                        ${actionsHTML}
+                      </div>`;
+                }
         } else if (entry.type === "voice") {
             div.innerHTML = `
               <div class="entry-header">
                 <h3>${entry.title}</h3>
-                <time>${new Date(entry.created_at).toLocaleTimeString()}</time>
+                <time>${formatTimeIST(entry.created_at)}</time>
               </div>
               <audio controls style="width:100%;">
                 <source src="/${entry.audio_path}" type="audio/webm">
@@ -625,7 +1297,7 @@ if (filtered.length === 0) {
     });
 }
 
-                // --- Add event listener for all delete buttons ---
+                // --- Add event listener for all buttons and entry clicks ---
                 container.addEventListener('click', async (e) => {
                     if (e.target && e.target.matches('.btn-delete-entry')) {
                         const button = e.target;
@@ -647,6 +1319,19 @@ if (filtered.length === 0) {
                                 button.textContent = "🗑️ Delete";
                             }
                         }
+                    } else if (e.target && e.target.matches('.btn-export-entry')) {
+                        const button = e.target;
+                        const entryId = button.dataset.entryId;
+                        exportSingleEntry(entryId);
+                    } else if (e.target && e.target.closest('.entry-clickable')) {
+                        const clickableElement = e.target.closest('.entry-clickable');
+                        const title = clickableElement.dataset.title;
+                        const content = clickableElement.dataset.content;
+                        const mood = clickableElement.dataset.mood;
+                        const theme = clickableElement.dataset.theme;
+                        const createdDate = clickableElement.dataset.created;
+
+                        showJournalEntryModal(title, content, mood, theme, createdDate);
                     }
                 });
 
@@ -940,7 +1625,7 @@ if (filtered.length === 0) {
                 await api.post('/entries/voice', formData, true);
                 renderRecordings();
                 modal.classList.remove("show");
-                voiceStatus.textContent = `🔒 Time Capsule will unlock at ${new Date(dtInput).toLocaleString()}`;
+                voiceStatus.textContent = `🔒 Time Capsule will unlock at ${formatDateTimeIST(dtInput)}`;
                 resetVoiceRecorder();
             } catch (err) {
                 voiceStatus.textContent = "❌ Failed to save capsule.";
@@ -985,11 +1670,11 @@ if (filtered.length === 0) {
                     delBtn.onclick = () => deleteRecording(entry.id);
 
                     if (entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now) {
-                        time.innerHTML = `🔒 Locked until ${new Date(entry.capsule_open_date).toLocaleString()}`;
+                        time.innerHTML = `🔒 Locked until ${formatDateTimeIST(entry.capsule_open_date)}`;
                         wrapper.classList.add('locked-note');
                     } else {
                         audio.src = `/${entry.audio_path}`;
-                        time.textContent = new Date(entry.created_at).toLocaleString();
+                        time.textContent = formatDateTimeIST(entry.created_at);
                         wrapper.appendChild(audio);
                     }
 
@@ -1013,8 +1698,7 @@ if (filtered.length === 0) {
             }
         }
         
-        // Auto-refresh Time Capsules
-        voiceInterval = setInterval(renderRecordings, 5000); // Check every 5 seconds
+        // Render recordings once
         renderRecordings(); // Initial render
     }
 
@@ -1149,27 +1833,61 @@ if (filtered.length === 0) {
     }
 
     function showNotification(message, type = 'info') {
+        // Remove existing notifications of the same type
+        const existingNotifications = document.querySelectorAll(`.notification.${type}`);
+        existingNotifications.forEach(n => n.remove());
+
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.textContent = message;
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'assertive');
+        notification.innerHTML = `
+            <span class="notification-icon">${getNotificationIcon(type)}</span>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" aria-label="Close notification">×</button>
+        `;
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#F44336' : '#2196F3'};
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#F44336' : type === 'info' ? '#2196F3' : '#FF9800'};
             color: white;
             padding: 15px 20px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             z-index: 10000;
             animation: slideInNotification 0.5s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 400px;
         `;
         document.body.appendChild(notification);
 
+        // Close button functionality
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', () => {
+            notification.style.animation = 'slideOutNotification 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        });
+
+        // Auto-remove after 4 seconds
         setTimeout(() => {
-            notification.style.animation = 'slideOutNotification 0.5s ease-in';
-            setTimeout(() => notification.remove(), 500);
-        }, 3000);
+            if (notification.parentNode) {
+                notification.style.animation = 'slideOutNotification 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 4000);
+    }
+
+    function getNotificationIcon(type) {
+        const icons = {
+            success: '✅',
+            error: '❌',
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+        return icons[type] || 'ℹ️';
     }
 
     // ================= CALENDAR =================
@@ -1263,6 +1981,110 @@ if (filtered.length === 0) {
         return emojis[emotion] || '💭';
     }
 
+    // --- Content Preview Function ---
+    function getContentPreview(content) {
+        if (!content) return '';
+
+        // Split by lines and take first 3-5 lines
+        const lines = content.split('\n').filter(line => line.trim().length > 0);
+        const previewLines = lines.slice(0, 4); // Take first 4 lines for preview
+
+        // If content is short, return as is
+        if (lines.length <= 4) {
+            return content;
+        }
+
+        // Join preview lines and add ellipsis
+        return previewLines.join('\n') + '\n...';
+    }
+
+    // --- Journal Entry Modal ---
+    function showJournalEntryModal(title, content, mood, theme, createdDate) {
+        const modal = document.createElement('div');
+        modal.className = 'modal journal-entry-modal';
+        modal.innerHTML = `
+            <div class="modal-content journal-modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h2>${title || "Untitled"}</h2>
+                    <button id="closeEntryModal" class="close-modal-btn">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="entry-metadata">
+                        <span class="mood-tag">${getMoodEmoji(mood)} ${mood}</span>
+                        <time class="entry-date">${formatDateTimeIST(createdDate)}</time>
+                    </div>
+                    <div class="entry-full-content" id="entryFullContent">
+                        ${content.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Apply theme to modal content
+        const modalContent = modal.querySelector('.journal-modal-content');
+        applyThemeToModal(modalContent, theme);
+
+        modal.classList.add('show');
+
+        document.getElementById('closeEntryModal').addEventListener('click', () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        });
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            }
+        });
+    }
+
+    function applyThemeToModal(modalElement, theme) {
+        const contentArea = modalElement.querySelector('#entryFullContent');
+
+        // Reset to default
+        modalElement.style.background = '';
+        contentArea.style.background = '';
+        contentArea.style.backgroundImage = '';
+
+        switch(theme) {
+            case 'default':
+                contentArea.style.background = 'repeating-linear-gradient(white, white 32px, #f8f9fa 33px)';
+                break;
+            case 'nature':
+                modalElement.style.background = 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)';
+                contentArea.style.background = 'rgba(255, 255, 255, 0.95)';
+                contentArea.style.boxShadow = 'inset 0 0 20px rgba(76, 175, 80, 0.1)';
+                contentArea.style.borderRadius = '10px';
+                break;
+            case 'abstract':
+                modalElement.style.background = 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)';
+                contentArea.style.background = 'rgba(255, 255, 255, 0.95)';
+                contentArea.style.borderRadius = '10px';
+                break;
+            case 'minimalist':
+                modalElement.style.background = '#fafafa';
+                contentArea.style.background = 'white';
+                contentArea.style.border = '1px solid #e0e0e0';
+                contentArea.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                contentArea.style.borderRadius = '10px';
+                break;
+            case 'custom':
+                const customImage = localStorage.getItem('customBgImage');
+                if (customImage) {
+                    modalElement.style.backgroundImage = `url(${customImage})`;
+                    modalElement.style.backgroundSize = 'cover';
+                    modalElement.style.backgroundPosition = 'center';
+                    contentArea.style.background = 'rgba(255, 255, 255, 0.95)';
+                    contentArea.style.backdropFilter = 'blur(10px)';
+                    contentArea.style.borderRadius = '10px';
+                }
+                break;
+        }
+    }
+
     // --- Journal Preview Modal ---
     function showJournalPreview(title, content, mood) {
         const modal = document.createElement('div');
@@ -1275,7 +2097,7 @@ if (filtered.length === 0) {
                     <p>${content}</p>
                     <div class="preview-footer">
                         <span class="mood-tag">${getMoodEmoji(mood)} ${mood}</span>
-                        <span class="preview-date">${new Date().toLocaleString()}</span>
+                        <span class="preview-date">${formatDateTimeIST(new Date())}</span>
                     </div>
                 </div>
                 <button id="closePreview" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">Close</button>
