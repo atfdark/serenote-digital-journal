@@ -17,7 +17,8 @@ db_uri = 'sqlite:///' + db_path
 # --- End of Changes ---
 
 # Now use the absolute path URI to create the engine
-engine = create_engine(db_uri, echo=True)
+from sqlalchemy.pool import StaticPool
+engine = create_engine(db_uri, echo=False, poolclass=StaticPool, pool_pre_ping=True)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 Base = declarative_base()

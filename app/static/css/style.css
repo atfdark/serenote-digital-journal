@@ -12,6 +12,7 @@
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+
 * {
   margin: 0;
   padding: 0;
@@ -23,6 +24,13 @@ body {
   line-height: 1.6;
   color: var(--text-dark);
   background: var(--bg-gradient);
+}
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 /* Header */
@@ -38,9 +46,9 @@ body {
 }
 
 .logo-sere {
-  max-width: 150px; 
-  width: 100%;      
-  height: auto;     
+  max-width: 150px;
+  width: 100%;
+  height: auto;
 }
 
 .login-btn {
@@ -302,36 +310,3 @@ body {
   transform: translateY(-3px);
 }
 
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .hero-title {
-    font-size: 2rem;
-  }
-  .logo-sere {
-    max-width: 120px;
-  }
-
-  .welcome-title {
-    font-size: 2.5rem;
-  }
-
-  .features-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .header {
-    padding: 1rem;
-  }
-
-  .cta-buttons {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .cta-primary,
-  .cta-secondary {
-    width: 100%;
-    max-width: 300px;
-  }
-}
