@@ -9,17 +9,17 @@
 </head>
 
 <body>
-  <!-- Header -->
-  <header class="header">
-    <div class="logo">
-      <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="" class="logo-sere" />
-    </div>
-    <div id="clock" style="color: white; font-size: 1.2em; text-align: center; flex-grow: 1;"></div>
-    <a href="{{ url_for('views.login_page') }}">
-      <button class="login-btn">Login</button>
-  </a>
+ <!-- Header -->
+<header class="header">
+  <div class="logo">
+    <img src="{{ url_for('static', filename='assets/logo.png') }}" alt="" class="logo-sere" />
+  </div>
+  <div id="clock" style="color: white; font-size: 1.2em; text-align: center; flex-grow: 1;"></div>
+  <a href="{{ url_for('views.login_page') }}">
+    <button class="login-btn">Login</button>
+ </a>
 
-  </header>
+</header>
 
   <!-- Hero Section -->
   <section class="hero">
@@ -169,8 +169,12 @@
           journaling
         </p>
         <div class="cta-buttons">
-          <button class="cta-primary">Start Your Free Journey</button>
-          <button class="cta-secondary">Learn More</button>
+          <a href="{{ url_for('views.login_page') }}">
+            <button class="cta-primary">Start Your Free Journey</button>
+          </a>
+          <a href="{{ url_for('views.login_page') }}">
+            <button class="cta-secondary">Learn More</button>
+          </a>
         </div>
       </div>
     </section>

@@ -7,6 +7,7 @@ from app.routes.garden_routes import garden_routes
 from app.routes.entry_routes import entry_routes
 from app.routes.view_routes import view_routes
 from app.routes.dashboard_routes import dashboard_api
+from app.routes.todo_routes import todo_routes
 
 
 def create_app():
@@ -35,6 +36,7 @@ def create_app():
     app.register_blueprint(entry_routes, url_prefix="/entries")
     app.register_blueprint(view_routes)
     app.register_blueprint(dashboard_api)
+    app.register_blueprint(todo_routes, url_prefix="/todos")
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

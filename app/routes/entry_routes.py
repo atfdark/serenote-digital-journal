@@ -120,19 +120,9 @@ def generate_ai_prompts():
         return jsonify({"messages": [], "detected_emotion": "neutral"}), 200
 
     try:
-        # First, analyze the emotion in the content
-        emotion_prompt = f"""Analyze this journal entry and detect the primary emotion: '{content}'
-
-Respond with only one word: the primary emotion (Happy, Sad, Angry, Excited, Calm, Anxious, Neutral, etc.)"""
-
-        emotion_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": emotion_prompt}],
-            max_tokens=20,
-            temperature=0.3
-        )
-
-        detected_emotion = emotion_response.choices[0].message.content.strip().lower()
+        # Use the user's explicitly selected mood for compassionate responses
+        # The AI analysis is still performed for personalized messages, but we respect user's self-identification
+        detected_emotion = mood.lower() if mood else "neutral"
 
         # Now generate appropriate messages based on detected emotion
         emotion_responses = {
@@ -192,3 +182,209 @@ Respond with only one word: the primary emotion (Happy, Sad, Angry, Excited, Cal
             "detected_emotion": "neutral",
             "is_low_mood": False
         }), 200
+
+@entry_routes.route("/compassionate-tools", methods=["GET"])
+def get_compassionate_tools():
+    """Get all compassionate response tools based on emotion."""
+    emotion = request.args.get("emotion", "neutral").lower()
+
+    tools = {
+        "quotes": get_comforting_quotes(emotion),
+        "prompts": get_guided_prompts(emotion),
+        "music": get_music_recommendations(emotion),
+        "breathing": get_breathing_exercise(emotion)
+    }
+
+    return jsonify(tools)
+
+def get_comforting_quotes(emotion):
+    """Get curated comforting quotes based on emotion."""
+    quotes_db = {
+        "sad": [
+            {"text": "The darkest nights produce the brightest stars.", "author": "Unknown"},
+            {"text": "This too shall pass.", "author": "Unknown"},
+            {"text": "Your pain is valid, and so is your strength.", "author": "Unknown"},
+            {"text": "Healing takes time, and that's okay.", "author": "Unknown"}
+        ],
+        "angry": [
+            {"text": "For every minute you are angry, you lose sixty seconds of happiness.", "author": "Ralph Waldo Emerson"},
+            {"text": "The best revenge is massive success.", "author": "Frank Sinatra"},
+            {"text": "Peace begins with a smile.", "author": "Mother Teresa"},
+            {"text": "Let go of what you can't control.", "author": "Unknown"}
+        ],
+        "anxious": [
+            {"text": "Peace comes from within. Do not seek it without.", "author": "Buddha"},
+            {"text": "The only way to do great work is to love what you do.", "author": "Steve Jobs"},
+            {"text": "You are stronger than you know.", "author": "Unknown"},
+            {"text": "One day at a time.", "author": "Unknown"}
+        ],
+        "happy": [
+            {"text": "Happiness is not something ready-made. It comes from your own actions.", "author": "Dalai Lama"},
+            {"text": "The most important thing is to enjoy your life.", "author": "Audrey Hepburn"},
+            {"text": "Choose joy.", "author": "Unknown"},
+            {"text": "Gratitude turns what we have into enough.", "author": "Unknown"}
+        ],
+        "neutral": [
+            {"text": "The journey of a thousand miles begins with a single step.", "author": "Lao Tzu"},
+            {"text": "You are exactly where you need to be.", "author": "Unknown"},
+            {"text": "Every moment is a fresh beginning.", "author": "T.S. Eliot"},
+            {"text": "Trust the process.", "author": "Unknown"}
+        ]
+    }
+
+    return quotes_db.get(emotion, quotes_db["neutral"])
+
+def get_guided_prompts(emotion):
+    """Get guided journaling prompts based on emotion."""
+    prompts_db = {
+        "sad": [
+            "What is one small thing that brought you comfort today?",
+            "If you could talk to your younger self right now, what would you say?",
+            "What are three things you're grateful for, even on difficult days?",
+            "Describe a time when you felt truly supported by someone.",
+            "What does self-compassion look like for you in this moment?"
+        ],
+        "angry": [
+            "What triggered this anger, and what might it be trying to tell you?",
+            "If this anger could speak, what would it say?",
+            "What would it look like to channel this energy into something positive?",
+            "What boundaries do you need to set to protect your peace?",
+            "How can you express this feeling in a healthy way?"
+        ],
+        "anxious": [
+            "What is one thing you can control right now?",
+            "What evidence do you have that you've gotten through difficult times before?",
+            "What would you tell a friend who was feeling this way?",
+            "What are three things you can see, hear, and feel in this moment?",
+            "What small step can you take today to move forward?"
+        ],
+        "happy": [
+            "What brought this happiness into your life?",
+            "How can you cultivate more of this feeling?",
+            "What would you like to share with others about this moment?",
+            "What does joy feel like in your body?",
+            "How can you carry this feeling with you throughout your day?"
+        ],
+        "neutral": [
+            "What are you noticing about your thoughts right now?",
+            "What does balance feel like for you?",
+            "What small change could bring more peace to your day?",
+            "What are you looking forward to?",
+            "How are you taking care of yourself today?"
+        ]
+    }
+
+    return prompts_db.get(emotion, prompts_db["neutral"])
+
+def get_music_recommendations(emotion):
+    """Get music recommendations based on emotion."""
+    music_db = {
+        "sad": [
+            {"title": "Hurt", "artist": "Johnny Cash", "genre": "Folk/Country", "mood": "Reflective"},
+            {"title": "Someone Like You", "artist": "Adele", "genre": "Pop", "mood": "Melancholic"},
+            {"title": "The Night We Met", "artist": "Lord Huron", "genre": "Indie Folk", "mood": "Nostalgic"},
+            {"title": "Skinny Love", "artist": "Bon Iver", "genre": "Folk", "mood": "Intimate"}
+        ],
+        "angry": [
+            {"title": "Break Stuff", "artist": "Limp Bizkit", "genre": "Rap Metal", "mood": "Energetic"},
+            {"title": "Killing in the Name", "artist": "Rage Against the Machine", "genre": "Alternative Metal", "mood": "Rebellious"},
+            {"title": "Breathe", "artist": "The Prodigy", "genre": "Electronic", "mood": "Intense"},
+            {"title": "Smells Like Teen Spirit", "artist": "Nirvana", "genre": "Grunge", "mood": "Raw"}
+        ],
+        "anxious": [
+            {"title": "Weightless", "artist": "Marconi Union", "genre": "Ambient", "mood": "Calming"},
+            {"title": "River", "artist": "Joni Mitchell", "genre": "Folk", "mood": "Soothing"},
+            {"title": "Holocene", "artist": "Bon Iver", "genre": "Indie Folk", "mood": "Peaceful"},
+            {"title": "The Night We Met", "artist": "Lord Huron", "genre": "Indie Folk", "mood": "Gentle"}
+        ],
+        "happy": [
+            {"title": "Happy", "artist": "Pharrell Williams", "genre": "Pop", "mood": "Uplifting"},
+            {"title": "Can't Stop the Feeling!", "artist": "Justin Timberlake", "genre": "Pop", "mood": "Joyful"},
+            {"title": "Walking on Sunshine", "artist": "Katrina and the Waves", "genre": "Pop Rock", "mood": "Energetic"},
+            {"title": "Three Little Birds", "artist": "Bob Marley", "genre": "Reggae", "mood": "Positive"}
+        ],
+        "neutral": [
+            {"title": "Dream On", "artist": "Aerosmith", "genre": "Rock", "mood": "Motivational"},
+            {"title": "Imagine", "artist": "John Lennon", "genre": "Pop Rock", "mood": "Hopeful"},
+            {"title": "What a Wonderful World", "artist": "Louis Armstrong", "genre": "Jazz", "mood": "Grateful"},
+            {"title": "Lean on Me", "artist": "Bill Withers", "genre": "Soul", "mood": "Supportive"}
+        ]
+    }
+
+    return music_db.get(emotion, music_db["neutral"])
+
+def get_breathing_exercise(emotion):
+    """Get breathing exercise based on emotion."""
+    exercises_db = {
+        "sad": {
+            "name": "Compassionate Breathing",
+            "description": "A gentle breathing exercise to nurture self-compassion",
+            "steps": [
+                "Place one hand on your heart and one on your belly",
+                "Inhale slowly through your nose for a count of 4, feeling your belly rise",
+                "Hold for a count of 4, sending love to yourself",
+                "Exhale through your mouth for a count of 6, releasing any tension",
+                "Repeat for 2-3 minutes, focusing on self-kindness"
+            ],
+            "duration": "2-3 minutes",
+            "benefits": "Helps cultivate self-compassion and emotional healing"
+        },
+        "angry": {
+            "name": "Grounding Breath",
+            "description": "A powerful breathing technique to release anger and find calm",
+            "steps": [
+                "Sit or stand with your feet firmly on the ground",
+                "Inhale deeply through your nose for a count of 4",
+                "Hold your breath for a count of 4",
+                "Exhale forcefully through your mouth for a count of 4, imagining releasing the anger",
+                "Pause for a count of 4 before the next inhale",
+                "Repeat for 1-2 minutes until you feel more centered"
+            ],
+            "duration": "1-2 minutes",
+            "benefits": "Helps release pent-up energy and restore emotional balance"
+        },
+        "anxious": {
+            "name": "4-7-8 Breathing",
+            "description": "A calming technique to reduce anxiety and promote relaxation",
+            "steps": [
+                "Place the tip of your tongue against the ridge behind your front teeth",
+                "Inhale quietly through your nose for a count of 4",
+                "Hold your breath for a count of 7",
+                "Exhale completely through your mouth for a count of 8, making a whoosh sound",
+                "Repeat the cycle 4 times",
+                "Practice this 2-3 times daily for best results"
+            ],
+            "duration": "1-2 minutes",
+            "benefits": "Activates the parasympathetic nervous system to reduce anxiety"
+        },
+        "happy": {
+            "name": "Joyful Breathing",
+            "description": "An energizing breath to amplify positive emotions",
+            "steps": [
+                "Stand or sit with good posture, smiling gently",
+                "Inhale deeply through your nose for a count of 4, expanding your chest",
+                "Exhale through your mouth with a gentle sigh for a count of 4",
+                "On each exhale, think of something you're grateful for",
+                "Repeat for 1-2 minutes, allowing joy to fill your body",
+                "Notice how your mood becomes even more positive"
+            ],
+            "duration": "1-2 minutes",
+            "benefits": "Amplifies positive emotions and cultivates gratitude"
+        },
+        "neutral": {
+            "name": "Balanced Breathing",
+            "description": "A simple technique to find balance and presence",
+            "steps": [
+                "Sit comfortably with your spine straight",
+                "Inhale through your nose for a count of 4",
+                "Exhale through your nose for a count of 4",
+                "Continue for 2-3 minutes, keeping your breath smooth and even",
+                "If your mind wanders, gently bring it back to your breath",
+                "Notice how this creates a sense of calm and balance"
+            ],
+            "duration": "2-3 minutes",
+            "benefits": "Promotes mindfulness and emotional equilibrium"
+        }
+    }
+
+    return exercises_db.get(emotion, exercises_db["neutral"])

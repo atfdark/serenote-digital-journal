@@ -41,6 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return res.json();
         },
+        async put(endpoint, body) {
+            const res = await fetch(endpoint, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ message: "Failed to update" }));
+                throw new Error(errorData.message);
+            }
+            return res.json();
+        },
         async delete(endpoint) {
             const res = await fetch(endpoint, { method: 'DELETE' });
             if (!res.ok) {
@@ -542,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case "journal": loadJournal(); break;
             case "voice": loadVoiceNotes(); break;
             case "mood": loadMoodGarden(); break;
+            case "todo": loadTodoList(); break;
             default: content.innerHTML = '<h1>Page not found</h1>';
         }
     }
@@ -1192,14 +1205,23 @@ document.getElementById("saveJournal").addEventListener("click", async () => {
         } catch (gardenErr) {
             console.error("Garden update failed:", gardenErr);
         }
+// Generate compassionate response tools based on user's selected mood
+try {
+    const aiResponse = await api.post("/entries/generate-prompts", { content: contentText, mood });
 
-        // Generate AI messages based on content analysis
-        try {
-            const aiResponse = await api.post("/entries/generate-prompts", { content: contentText, mood });
-            showEmotionBasedMessages(aiResponse.messages, aiResponse.detected_emotion, aiResponse.is_low_mood);
-        } catch (err) {
-            console.error("AI analysis failed:", err);
-        }
+    // Use the user's explicitly selected mood instead of AI-detected emotion
+    // This ensures we respect the user's self-identification of their emotional state
+    const userSelectedMood = mood.toLowerCase();
+
+    // Get compassionate tools based on user's chosen mood
+    const compassionateTools = await api.get(`/entries/compassionate-tools?emotion=${userSelectedMood}`);
+
+    showCompassionateResponseModal(aiResponse.messages, userSelectedMood, aiResponse.is_low_mood, compassionateTools);
+} catch (err) {
+    console.error("Compassionate response failed:", err);
+    // Fallback to basic notification
+    showNotification('Entry saved successfully! 🌱', 'success');
+}
 
         setTimeout(() => {
             msg.classList.add("hidden");
@@ -1587,6 +1609,10 @@ if (filtered.length === 0) {
 
                 voiceStatus.textContent = "✅ Saved to server!";
                 resetVoiceRecorder();
+
+                // Reload voice stats and recordings list
+                loadVoiceStats();
+                renderRecordings();
             } catch (err) {
                 voiceStatus.textContent = "❌ Failed to save.";
             }
@@ -1623,6 +1649,7 @@ if (filtered.length === 0) {
 
             try {
                 await api.post('/entries/voice', formData, true);
+                loadVoiceStats();
                 renderRecordings();
                 modal.classList.remove("show");
                 voiceStatus.textContent = `🔒 Time Capsule will unlock at ${formatDateTimeIST(dtInput)}`;
@@ -1654,21 +1681,28 @@ if (filtered.length === 0) {
                     return;
                 }
 
+                // Sort voice entries by creation date (newest first)
+                voiceEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        
                 voiceEntries.forEach(entry => {
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
-
+        
+                    const title = document.createElement("h3");
+                    title.classList.add("recording-title");
+                    title.textContent = entry.title || "Voice Note";
+        
                     const time = document.createElement("p");
                     time.classList.add("recording-time");
-
+        
                     const audio = document.createElement("audio");
                     audio.controls = true;
-
+        
                     const delBtn = document.createElement("button");
                     delBtn.classList.add("delete-note");
                     delBtn.textContent = "🗑 Delete";
                     delBtn.onclick = () => deleteRecording(entry.id);
-
+        
                     if (entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now) {
                         time.innerHTML = `🔒 Locked until ${formatDateTimeIST(entry.capsule_open_date)}`;
                         wrapper.classList.add('locked-note');
@@ -1677,8 +1711,12 @@ if (filtered.length === 0) {
                         time.textContent = formatDateTimeIST(entry.created_at);
                         wrapper.appendChild(audio);
                     }
-
-                    wrapper.prepend(time);
+        
+                    wrapper.appendChild(title);
+                    wrapper.appendChild(time);
+                    if (!wrapper.classList.contains('locked-note')) {
+                        wrapper.appendChild(audio);
+                    }
                     wrapper.appendChild(delBtn);
                     list.appendChild(wrapper);
                 });
@@ -1691,6 +1729,7 @@ if (filtered.length === 0) {
             if (confirm('Delete this recording?')) {
                 try {
                     await api.delete(`/entries/delete/${entryId}`);
+                    loadVoiceStats();
                     renderRecordings();
                 } catch (err) {
                     alert('Failed to delete.');
@@ -1700,6 +1739,484 @@ if (filtered.length === 0) {
         
         // Render recordings once
         renderRecordings(); // Initial render
+    }
+
+    // ================= TODO LIST =================
+    async function loadTodoList() {
+        content.innerHTML = `
+            <div class="todo-container">
+                <div class="todo-header">
+                    <h1>✅ Todo List</h1>
+                    <p>Stay organized and track your tasks for better mental well-being</p>
+                    <div class="todo-stats" id="todoStats"></div>
+                </div>
+
+                <div class="todo-content">
+                    <div class="add-todo-section">
+                        <div class="add-todo-form">
+                            <input type="text" id="todoTitle" placeholder="What needs to be done?" maxlength="200" />
+                            <textarea id="todoDescription" placeholder="Add details (optional)" maxlength="500"></textarea>
+                            <div class="todo-options">
+                                <select id="todoPriority">
+                                    <option value="low">🟢 Low Priority</option>
+                                    <option value="medium" selected>🟡 Medium Priority</option>
+                                    <option value="high">🔴 High Priority</option>
+                                </select>
+                                <select id="todoCategory">
+                                    <option value="general" selected>📝 General</option>
+                                    <option value="work">💼 Work</option>
+                                    <option value="personal">👤 Personal</option>
+                                    <option value="health">🏥 Health</option>
+                                    <option value="learning">📚 Learning</option>
+                                    <option value="relationships">❤️ Relationships</option>
+                                </select>
+                                <input type="datetime-local" id="todoDueDate" />
+                            </div>
+                            <button id="addTodoBtn" class="add-todo-btn">➕ Add Task</button>
+                        </div>
+                    </div>
+
+                    <div class="todo-filters">
+                        <div class="filter-buttons">
+                            <button class="filter-btn active" data-filter="all">All</button>
+                            <button class="filter-btn" data-filter="pending">Pending</button>
+                            <button class="filter-btn" data-filter="completed">Completed</button>
+                        </div>
+                        <div class="category-filters">
+                            <button class="category-filter active" data-category="all">All Categories</button>
+                            <button class="category-filter" data-category="general">General</button>
+                            <button class="category-filter" data-category="work">Work</button>
+                            <button class="category-filter" data-category="personal">Personal</button>
+                            <button class="category-filter" data-category="health">Health</button>
+                        </div>
+                        <div class="todo-actions-bar">
+                            <input type="text" id="todoSearch" placeholder="🔍 Search tasks..." />
+                            <button id="clearCompletedBtn" class="action-btn">🗑️ Clear Completed</button>
+                        </div>
+                    </div>
+
+                    <div class="todo-list" id="todoList">
+                        <div class="loading-todos">Loading your tasks...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Load todo stats and list
+        loadTodoStats();
+        loadTodos();
+
+        // Add todo functionality
+        setupTodoEventListeners();
+    }
+
+    async function loadTodoStats() {
+        try {
+            const stats = await api.get(`/todos/stats/${userId}`);
+            const statsEl = document.getElementById('todoStats');
+
+            statsEl.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.total}</div>
+                        <div class="stat-label">Total Tasks</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.pending}</div>
+                        <div class="stat-label">Pending</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.completed}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${Math.round(stats.completion_rate)}%</div>
+                        <div class="stat-label">Completion Rate</div>
+                    </div>
+                </div>
+                ${stats.overdue > 0 ? `<div class="overdue-notice">⚠️ ${stats.overdue} overdue task${stats.overdue > 1 ? 's' : ''}</div>` : ''}
+            `;
+        } catch (error) {
+            console.error('Failed to load todo stats:', error);
+        }
+    }
+
+    async function loadTodos() {
+        try {
+            const todos = await api.get(`/todos/user/${userId}`);
+            renderTodos(todos);
+        } catch (error) {
+            console.error('Failed to load todos:', error);
+            document.getElementById('todoList').innerHTML = '<div class="error-message">Failed to load tasks. Please try again.</div>';
+        }
+    }
+
+    function renderTodos(todos, filter = 'all', categoryFilter = 'all', searchTerm = '') {
+        const todoListEl = document.getElementById('todoList');
+
+        // Apply filters
+        let filteredTodos = todos;
+        if (filter === 'pending') {
+            filteredTodos = todos.filter(todo => !todo.completed);
+        } else if (filter === 'completed') {
+            filteredTodos = todos.filter(todo => todo.completed);
+        }
+
+        if (categoryFilter !== 'all') {
+            filteredTodos = filteredTodos.filter(todo => todo.category === categoryFilter);
+        }
+
+        // Apply search filter
+        if (searchTerm) {
+            filteredTodos = filteredTodos.filter(todo =>
+                todo.title.toLowerCase().includes(searchTerm) ||
+                (todo.description && todo.description.toLowerCase().includes(searchTerm)) ||
+                todo.category.toLowerCase().includes(searchTerm) ||
+                todo.priority.toLowerCase().includes(searchTerm)
+            );
+        }
+
+        if (filteredTodos.length === 0) {
+            const emptyMessage = filter === 'all' && categoryFilter === 'all'
+                ? 'No tasks yet. Add your first task above!'
+                : 'No tasks match your current filters.';
+            todoListEl.innerHTML = `<div class="empty-todos">${emptyMessage}</div>`;
+            return;
+        }
+
+        // Sort: pending first, then by priority, then by due date
+        filteredTodos.sort((a, b) => {
+            if (a.completed !== b.completed) return a.completed ? 1 : -1;
+            const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+            if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                return priorityOrder[b.priority] - priorityOrder[a.priority];
+            }
+            if (a.due_date && b.due_date) {
+                return new Date(a.due_date) - new Date(b.due_date);
+            }
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+
+        todoListEl.innerHTML = filteredTodos.map(todo => {
+            const isOverdue = todo.due_date && new Date(todo.due_date) < new Date() && !todo.completed;
+            const priorityClass = `priority-${todo.priority}`;
+            const categoryEmoji = getCategoryEmoji(todo.category);
+
+            return `
+                <div class="todo-item ${todo.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}" data-id="${todo.id}">
+                    <div class="todo-main">
+                        <label class="todo-checkbox">
+                            <input type="checkbox" ${todo.completed ? 'checked' : ''} />
+                        </label>
+                        <div class="todo-content">
+                            <div class="todo-title ${todo.completed ? 'strikethrough' : ''}">${todo.title}</div>
+                            ${todo.description ? `<div class="todo-description">${todo.description}</div>` : ''}
+                            <div class="todo-meta">
+                                <span class="todo-category">${categoryEmoji} ${todo.category}</span>
+                                <span class="todo-priority ${priorityClass}">${getPriorityText(todo.priority)}</span>
+                                ${todo.due_date ? `<span class="todo-due ${isOverdue ? 'overdue-text' : ''}">${formatDueDate(todo.due_date)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="todo-actions">
+                            <button class="edit-todo-btn" title="Edit">✏️</button>
+                            <button class="delete-todo-btn" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add event listeners for todo interactions after DOM update
+        setupTodoItemEventListeners();
+    }
+
+    function setupTodoEventListeners() {
+        // Add todo button
+        document.getElementById('addTodoBtn').addEventListener('click', async () => {
+            const title = document.getElementById('todoTitle').value.trim();
+            if (!title) {
+                showNotification('Please enter a task title', 'error');
+                return;
+            }
+
+            const todoData = {
+                user_id: userId,
+                title: title,
+                description: document.getElementById('todoDescription').value.trim(),
+                priority: document.getElementById('todoPriority').value,
+                category: document.getElementById('todoCategory').value,
+                due_date: document.getElementById('todoDueDate').value || null
+            };
+
+            try {
+                await api.post('/todos/add', todoData);
+                showNotification('Task added successfully!', 'success');
+
+                // Clear form
+                document.getElementById('todoTitle').value = '';
+                document.getElementById('todoDescription').value = '';
+                document.getElementById('todoDueDate').value = '';
+
+                // Reload todos and stats
+                loadTodos();
+                loadTodoStats();
+            } catch (error) {
+                showNotification('Failed to add task', 'error');
+            }
+        });
+
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const filter = btn.dataset.filter;
+                const categoryFilter = document.querySelector('.category-filter.active').dataset.category;
+                loadTodos().then(todos => renderTodos(todos, filter, categoryFilter));
+            });
+        });
+
+        // Category filter buttons
+        document.querySelectorAll('.category-filter').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.category-filter').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const categoryFilter = btn.dataset.category;
+                const filter = document.querySelector('.filter-btn.active').dataset.filter;
+                loadTodos().then(todos => renderTodos(todos, filter, categoryFilter));
+            });
+        });
+
+        // Search functionality
+        const todoSearch = document.getElementById('todoSearch');
+        if (todoSearch) {
+            todoSearch.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                loadTodos().then(todos => {
+                    const filter = document.querySelector('.filter-btn.active').dataset.filter;
+                    const categoryFilter = document.querySelector('.category-filter.active').dataset.category;
+                    renderTodos(todos, filter, categoryFilter, searchTerm);
+                });
+            });
+        }
+
+        // Clear completed button
+        const clearCompletedBtn = document.getElementById('clearCompletedBtn');
+        if (clearCompletedBtn) {
+            clearCompletedBtn.addEventListener('click', async () => {
+                if (confirm('Are you sure you want to delete all completed tasks?')) {
+                    try {
+                        const todos = await api.get(`/todos/user/${userId}`);
+                        const completedTodos = todos.filter(todo => todo.completed);
+
+                        // Delete all completed todos
+                        const deletePromises = completedTodos.map(todo =>
+                            api.delete(`/todos/delete/${todo.id}`)
+                        );
+
+                        await Promise.all(deletePromises);
+
+                        showNotification(`${completedTodos.length} completed tasks deleted`, 'success');
+                        loadTodos();
+                        loadTodoStats();
+                    } catch (error) {
+                        showNotification('Failed to clear completed tasks', 'error');
+                    }
+                }
+            });
+        }
+    }
+
+    function setupTodoItemEventListeners() {
+        // Use event delegation for all todo item interactions
+        const todoList = document.getElementById('todoList');
+
+        // Checkbox toggle - listen for changes on the checkbox input
+        todoList.addEventListener('change', async (e) => {
+            if (e.target.type === 'checkbox' && e.target.closest('.todo-item')) {
+                const checkbox = e.target;
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+                const completed = checkbox.checked;
+
+                try {
+                    await api.put(`/todos/update/${todoId}`, { completed });
+                    todoItem.classList.toggle('completed', completed);
+                    todoItem.querySelector('.todo-title').classList.toggle('strikethrough', completed);
+                    loadTodoStats(); // Update stats
+                    showNotification(completed ? 'Task completed! 🎉' : 'Task marked as pending', 'success');
+                } catch (error) {
+                    showNotification('Failed to update task', 'error');
+                    checkbox.checked = !completed; // Revert checkbox
+                }
+            }
+        });
+
+        // Delete and edit buttons - listen for clicks
+        todoList.addEventListener('click', async (e) => {
+            // Delete buttons
+            if (e.target.matches('.delete-todo-btn')) {
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+
+                if (confirm('Are you sure you want to delete this task?')) {
+                    try {
+                        await api.delete(`/todos/delete/${todoId}`);
+                        todoItem.remove();
+                        loadTodoStats(); // Update stats
+                        showNotification('Task deleted', 'success');
+                    } catch (error) {
+                        showNotification('Failed to delete task', 'error');
+                    }
+                }
+            }
+
+            // Edit buttons
+            if (e.target.matches('.edit-todo-btn')) {
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+                showEditTodoModal(todoId);
+            }
+        });
+    }
+
+    function getCategoryEmoji(category) {
+        const emojis = {
+            'general': '📝',
+            'work': '💼',
+            'personal': '👤',
+            'health': '🏥',
+            'learning': '📚',
+            'relationships': '❤️'
+        };
+        return emojis[category] || '📝';
+    }
+
+    function getPriorityText(priority) {
+        const texts = {
+            'high': '🔴 High',
+            'medium': '🟡 Medium',
+            'low': '🟢 Low'
+        };
+        return texts[priority] || '🟡 Medium';
+    }
+
+    function formatDueDate(dueDate) {
+        const date = new Date(dueDate);
+        const now = new Date();
+        const diffTime = date - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''}`;
+        } else if (diffDays === 0) {
+            return 'Due today';
+        } else if (diffDays === 1) {
+            return 'Due tomorrow';
+        } else if (diffDays < 7) {
+            return `Due in ${diffDays} days`;
+        } else {
+            return `Due ${formatDateIST(dueDate)}`;
+        }
+    }
+
+    function showEditTodoModal(todoId) {
+        // Get current todo data
+        api.get(`/todos/user/${userId}`)
+            .then(todos => {
+                const todo = todos.find(t => t.id == todoId);
+                if (!todo) {
+                    showNotification('Todo not found', 'error');
+                    return;
+                }
+
+                const modal = document.createElement('div');
+                modal.className = 'modal edit-todo-modal';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 500px;">
+                        <h2>✏️ Edit Task</h2>
+                        <form id="editTodoForm">
+                            <div class="form-group">
+                                <label for="editTitle">Title *</label>
+                                <input type="text" id="editTitle" value="${todo.title}" maxlength="200" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="editDescription">Description</label>
+                                <textarea id="editDescription" maxlength="500">${todo.description || ''}</textarea>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="editPriority">Priority</label>
+                                    <select id="editPriority">
+                                        <option value="low" ${todo.priority === 'low' ? 'selected' : ''}>🟢 Low Priority</option>
+                                        <option value="medium" ${todo.priority === 'medium' ? 'selected' : ''}>🟡 Medium Priority</option>
+                                        <option value="high" ${todo.priority === 'high' ? 'selected' : ''}>🔴 High Priority</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editCategory">Category</label>
+                                    <select id="editCategory">
+                                        <option value="general" ${todo.category === 'general' ? 'selected' : ''}>📝 General</option>
+                                        <option value="work" ${todo.category === 'work' ? 'selected' : ''}>💼 Work</option>
+                                        <option value="personal" ${todo.category === 'personal' ? 'selected' : ''}>👤 Personal</option>
+                                        <option value="health" ${todo.category === 'health' ? 'selected' : ''}>🏥 Health</option>
+                                        <option value="learning" ${todo.category === 'learning' ? 'selected' : ''}>📚 Learning</option>
+                                        <option value="relationships" ${todo.category === 'relationships' ? 'selected' : ''}>❤️ Relationships</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="editDueDate">Due Date</label>
+                                <input type="datetime-local" id="editDueDate" value="${todo.due_date ? new Date(todo.due_date).toISOString().slice(0, 16) : ''}" />
+                            </div>
+                            <div class="modal-buttons">
+                                <button type="button" id="cancelEditBtn">Cancel</button>
+                                <button type="submit" id="saveEditBtn">💾 Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                modal.classList.add('show');
+
+                // Event listeners
+                document.getElementById('cancelEditBtn').addEventListener('click', () => {
+                    modal.classList.remove('show');
+                    setTimeout(() => modal.remove(), 300);
+                });
+
+                document.getElementById('editTodoForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+
+                    const updatedData = {
+                        title: document.getElementById('editTitle').value.trim(),
+                        description: document.getElementById('editDescription').value.trim(),
+                        priority: document.getElementById('editPriority').value,
+                        category: document.getElementById('editCategory').value,
+                        due_date: document.getElementById('editDueDate').value || null
+                    };
+
+                    if (!updatedData.title) {
+                        showNotification('Title is required', 'error');
+                        return;
+                    }
+
+                    try {
+                        await api.put(`/todos/update/${todoId}`, updatedData);
+                        showNotification('Task updated successfully!', 'success');
+
+                        // Reload todos and stats
+                        loadTodos();
+                        loadTodoStats();
+
+                        modal.classList.remove('show');
+                        setTimeout(() => modal.remove(), 300);
+                    } catch (error) {
+                        showNotification('Failed to update task', 'error');
+                    }
+                });
+            })
+            .catch(() => showNotification('Failed to load task data', 'error'));
     }
 
 
@@ -1945,31 +2462,262 @@ if (filtered.length === 0) {
         renderCalendar();
     }
 
-    // --- Emotion-Based Messages Modal ---
-    function showEmotionBasedMessages(messages, detectedEmotion, isLowMood) {
+    // --- Compassionate Response Modal ---
+    function showCompassionateResponseModal(messages, userSelectedEmotion, isLowMood, tools) {
         if (!messages || messages.length === 0) return;
 
         const modal = document.createElement('div');
-        modal.className = 'modal';
-        const emotionEmoji = getEmotionEmoji(detectedEmotion);
+        modal.className = 'modal compassionate-modal';
+        const emotionEmoji = getEmotionEmoji(userSelectedEmotion);
         const emotionColor = isLowMood ? '#81c784' : '#667eea';
 
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 550px;">
-                <h2 style="color: ${emotionColor};">${emotionEmoji} Your Entry Analysis</h2>
-                <p style="margin-bottom: 20px;">I detected you're feeling <strong>${detectedEmotion}</strong>. Here are some thoughts to brighten your day:</p>
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                    ${messages.map(msg => `<div style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">${msg}</div>`).join('')}
+            <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+                <div class="compassionate-header">
+                    <h2 style="color: ${emotionColor};">${emotionEmoji} I'm Here to Support You</h2>
+                    <p style="margin-bottom: 20px;">You've shared that you're feeling <strong>${userSelectedEmotion}</strong>. Here are some compassionate tools tailored to support you in this moment:</p>
                 </div>
-                <button id="closeEmotionMessages" style="padding: 12px 25px; background: ${emotionColor}; color: white; border: none; border-radius: 25px; cursor: pointer; font-size: 16px;">Thanks! 😊</button>
+
+                <div class="compassionate-tools">
+                    <!-- AI Messages -->
+                    <div class="tool-section">
+                        <h3>💬 Words of Encouragement</h3>
+                        <div class="tool-content">
+                            ${messages.map(msg => `<div class="encouragement-item">${msg}</div>`).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Quotes -->
+                    <div class="tool-section">
+                        <h3>📖 Comforting Quotes</h3>
+                        <div class="tool-content">
+                            ${tools.quotes.map(quote => `
+                                <div class="quote-item">
+                                    <blockquote>"${quote.text}"</blockquote>
+                                    <cite>— ${quote.author}</cite>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Journaling Prompts -->
+                    <div class="tool-section">
+                        <h3>✍️ Guided Journaling Prompts</h3>
+                        <div class="tool-content">
+                            <p>Take a moment to reflect with these prompts:</p>
+                            <ul class="prompts-list">
+                                ${tools.prompts.map(prompt => `<li>${prompt}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Breathing Exercise -->
+                    <div class="tool-section">
+                        <h3>🧘 A Moment of Peace</h3>
+                        <div class="tool-content breathing-section">
+                            <h4>${tools.breathing.name}</h4>
+                            <p>${tools.breathing.description}</p>
+                            <div class="breathing-guide">
+                                <h5>How to practice:</h5>
+                                <ol>
+                                    ${tools.breathing.steps.map(step => `<li>${step}</li>`).join('')}
+                                </ol>
+                                <p><strong>Duration:</strong> ${tools.breathing.duration}</p>
+                                <p><strong>Benefits:</strong> ${tools.breathing.benefits}</p>
+                                <button id="startBreathing" class="breathing-btn">🌬️ Start Breathing Exercise</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Music Recommendations -->
+                    <div class="tool-section">
+                        <h3>🎵 Calming Music & Soundscapes</h3>
+                        <div class="tool-content">
+                            <p>Here are some songs that might help soothe your mood:</p>
+                            <div class="music-recommendations">
+                                ${tools.music.map(song => `
+                                    <div class="music-item">
+                                        <div class="music-info">
+                                            <strong>${song.title}</strong> by ${song.artist}<br>
+                                            <small>${song.genre} • ${song.mood}</small>
+                                        </div>
+                                        <button class="music-search-btn" data-song="${song.title} ${song.artist}">🔍 Search</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                                💡 Click "Search" to find these songs on your preferred music platform
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="compassionate-footer">
+                    <button id="closeCompassionateModal" class="close-compassionate-btn">Thank you, I'm feeling better now 😊</button>
+                </div>
             </div>
         `;
         document.body.appendChild(modal);
         modal.classList.add('show');
 
-        document.getElementById('closeEmotionMessages').addEventListener('click', () => {
+        // Add event listeners
+        document.getElementById('closeCompassionateModal').addEventListener('click', () => {
             modal.classList.remove('show');
             setTimeout(() => modal.remove(), 300);
+        });
+
+        // Breathing exercise functionality
+        const startBreathingBtn = document.getElementById('startBreathing');
+        if (startBreathingBtn) {
+            startBreathingBtn.addEventListener('click', () => {
+                startBreathingExercise(tools.breathing);
+            });
+        }
+
+        // Music search functionality
+        modal.addEventListener('click', (e) => {
+            if (e.target.classList.contains('music-search-btn')) {
+                const songQuery = e.target.dataset.song;
+                searchMusic(songQuery);
+            }
+        });
+    }
+
+    function startBreathingExercise(breathingData) {
+        const modal = document.createElement('div');
+        modal.className = 'modal breathing-exercise-modal';
+        modal.innerHTML = `
+            <div class="modal-content breathing-exercise-content" style="max-width: 600px; text-align: center;">
+                <h2>🧘 ${breathingData.name}</h2>
+                <p>${breathingData.description}</p>
+
+                <div class="breathing-circle" id="breathingCircle">
+                    <div class="breathing-instruction" id="breathingInstruction">Get ready...</div>
+                </div>
+
+                <div class="breathing-controls">
+                    <button id="startExerciseBtn" class="exercise-btn">Start Exercise</button>
+                    <button id="closeExerciseBtn" class="exercise-btn secondary">Close</button>
+                </div>
+
+                <div class="breathing-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0 / ${breathingData.duration.split('-')[1] || breathingData.duration.split(' ')[0]} minutes</div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.classList.add('show');
+
+        let exerciseInterval;
+        let progressInterval;
+        let currentStep = 0;
+        let totalTime = 0;
+        const maxTime = parseInt(breathingData.duration.split('-')[1] || breathingData.duration.split(' ')[0]) * 60; // Convert to seconds
+
+        document.getElementById('startExerciseBtn').addEventListener('click', () => {
+            startExercise();
+        });
+
+        document.getElementById('closeExerciseBtn').addEventListener('click', () => {
+            stopExercise();
+            modal.classList.remove('show');
+            setTimeout(() => modal.remove(), 300);
+        });
+
+        function startExercise() {
+            const circle = document.getElementById('breathingCircle');
+            const instruction = document.getElementById('breathingInstruction');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            document.getElementById('startExerciseBtn').style.display = 'none';
+
+            let stepIndex = 0;
+            const steps = breathingData.steps;
+            let stepTime = 0;
+
+            exerciseInterval = setInterval(() => {
+                if (stepIndex < steps.length) {
+                    instruction.textContent = steps[stepIndex];
+                    stepTime++;
+
+                    // Visual breathing animation
+                    if (stepIndex % 2 === 0) { // Inhale steps
+                        circle.style.transform = 'scale(1.2)';
+                        circle.style.backgroundColor = '#81c784';
+                    } else { // Exhale steps
+                        circle.style.transform = 'scale(1)';
+                        circle.style.backgroundColor = '#667eea';
+                    }
+
+                    if (stepTime >= 4) { // 4 seconds per step
+                        stepIndex++;
+                        stepTime = 0;
+                    }
+                } else {
+                    // Loop back to beginning for continuous practice
+                    stepIndex = 0;
+                }
+
+                totalTime++;
+                const progressPercent = Math.min((totalTime / maxTime) * 100, 100);
+                progressFill.style.width = `${progressPercent}%`;
+                progressText.textContent = `${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')} / ${Math.floor(maxTime / 60)}:00 minutes`;
+
+                if (totalTime >= maxTime) {
+                    stopExercise();
+                    instruction.textContent = "Great job! Take a moment to notice how you feel.";
+                    circle.style.transform = 'scale(1.1)';
+                    circle.style.backgroundColor = '#ffd54f';
+                }
+            }, 1000);
+        }
+
+        function stopExercise() {
+            if (exerciseInterval) {
+                clearInterval(exerciseInterval);
+                exerciseInterval = null;
+            }
+        }
+    }
+
+    function searchMusic(songQuery) {
+        // Open music search in new tab - users can choose their preferred platform
+        const searchUrls = [
+            `https://www.youtube.com/search?q=${encodeURIComponent(songQuery)}`,
+            `https://open.spotify.com/search/${encodeURIComponent(songQuery)}`,
+            `https://music.apple.com/us/search?term=${encodeURIComponent(songQuery)}`
+        ];
+
+        // Show platform selection modal
+        const platformModal = document.createElement('div');
+        platformModal.className = 'modal platform-modal';
+        platformModal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px; text-align: center;">
+                <h3>🎵 Choose your music platform</h3>
+                <div class="platform-buttons">
+                    <button class="platform-btn" data-url="${searchUrls[0]}">📺 YouTube</button>
+                    <button class="platform-btn" data-url="${searchUrls[1]}">🎵 Spotify</button>
+                    <button class="platform-btn" data-url="${searchUrls[2]}">🍎 Apple Music</button>
+                </div>
+                <button id="closePlatformModal" style="margin-top: 15px; padding: 8px 16px; background: #666; color: white; border: none; border-radius: 8px; cursor: pointer;">Cancel</button>
+            </div>
+        `;
+        document.body.appendChild(platformModal);
+        platformModal.classList.add('show');
+
+        platformModal.addEventListener('click', (e) => {
+            if (e.target.classList.contains('platform-btn')) {
+                window.open(e.target.dataset.url, '_blank');
+                platformModal.classList.remove('show');
+                setTimeout(() => platformModal.remove(), 300);
+            } else if (e.target.id === 'closePlatformModal') {
+                platformModal.classList.remove('show');
+                setTimeout(() => platformModal.remove(), 300);
+            }
         });
     }
 

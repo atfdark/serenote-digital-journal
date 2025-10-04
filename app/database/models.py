@@ -72,3 +72,19 @@ class GardenFlower(Base):
     bloom_count = Column(Integer, default=0)  # how many times it has bloomed
 
     garden = relationship("Garden", back_populates="flowers_data")
+
+class Todo(Base):
+    __tablename__ = "todos"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    completed = Column(Boolean, default=False)
+    priority = Column(String(20), default="medium")  # low, medium, high
+    category = Column(String(50), default="general")  # work, personal, health, etc.
+    due_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+    user = relationship("User")
