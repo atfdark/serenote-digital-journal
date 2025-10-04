@@ -178,29 +178,68 @@ document.addEventListener('DOMContentLoaded', () => {
             const doc = new jsPDF();
 
             // Set up colors matching site theme
-            const primaryColor = [102, 126, 234]; // #667eea
-            const secondaryColor = [118, 75, 162]; // #764ba2
-            const accentColor = [212, 175, 55]; // #d4af37
+            const primaryColor = [139, 115, 85]; // #8b7355 (brown)
+            const secondaryColor = [212, 175, 55]; // #d4af37 (gold)
+            const accentColor = [212, 175, 55]; // #d4af37 (gold)
 
             // Add cover page
             doc.setFillColor(...primaryColor);
             doc.rect(0, 0, 210, 297, 'F');
 
+            // Add logo
+            try {
+                const logoResponse = await fetch('/static/assets/logo.png');
+                const logoBlob = await logoResponse.blob();
+                const logoBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(logoBlob);
+                });
+
+                // Create image to get dimensions
+                const img = new Image();
+                img.src = logoBase64;
+                await new Promise(resolve => img.onload = resolve);
+
+                // Calculate dimensions to fit within 80x80 while maintaining aspect ratio
+                const maxSize = 80;
+                let logoWidth = img.width;
+                let logoHeight = img.height;
+
+                if (logoWidth > logoHeight) {
+                    logoHeight = (logoHeight * maxSize) / logoWidth;
+                    logoWidth = maxSize;
+                } else {
+                    logoWidth = (logoWidth * maxSize) / logoHeight;
+                    logoHeight = maxSize;
+                }
+
+                // Center the logo
+                const logoX = 105 - (logoWidth / 2);
+                doc.addImage(logoBase64, 'PNG', logoX, 40, logoWidth, logoHeight);
+            } catch (error) {
+                console.log('Logo not available, using text placeholder');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(20);
+                doc.setFont('helvetica', 'bold');
+                doc.text('📖', 105, 65, { align: 'center' });
+            }
+
             // Add title
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(30);
             doc.setFont('helvetica', 'bold');
-            doc.text('My Journal', 105, 100, { align: 'center' });
+            doc.text('My Journal', 105, 120, { align: 'center' });
 
             doc.setFontSize(16);
             doc.setFont('helvetica', 'normal');
-            doc.text('Serenote Export', 105, 120, { align: 'center' });
+            doc.text('Serenote Export', 105, 140, { align: 'center' });
 
             doc.setFontSize(12);
-            doc.text(`Exported on: ${formatDateTimeIST(new Date())}`, 105, 140, { align: 'center' });
-            doc.text(`Total Entries: ${textEntries.length}`, 105, 155, { align: 'center' });
+            doc.text(`Exported on: ${formatDateTimeIST(new Date())}`, 105, 160, { align: 'center' });
+            doc.text(`Total Entries: ${textEntries.length}`, 105, 175, { align: 'center' });
 
-            // Add logo area (placeholder)
+            // Add branding text
             doc.setTextColor(...accentColor);
             doc.setFontSize(10);
             doc.text('✨ Serenote - Your Digital Journal Companion ✨', 105, 250, { align: 'center' });
@@ -352,25 +391,56 @@ document.addEventListener('DOMContentLoaded', () => {
             const doc = new jsPDF();
 
             // Set up colors matching site theme
-            const primaryColor = [102, 126, 234]; // #667eea
-            const secondaryColor = [118, 75, 162]; // #764ba2
-            const accentColor = [212, 175, 55]; // #d4af37
+            const primaryColor = [139, 115, 85]; // #8b7355 (brown)
+            const secondaryColor = [212, 175, 55]; // #d4af37 (gold)
+            const accentColor = [212, 175, 55]; // #d4af37 (gold)
 
             // Add header with site branding
             doc.setFillColor(...primaryColor);
-            doc.rect(0, 0, 210, 30, 'F');
+            doc.rect(0, 0, 210, 50, 'F');
 
-            // Add logo/title
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(20);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Serenote', 20, 20);
+            // Add logo
+            try {
+                const logoResponse = await fetch('/static/assets/logo.png');
+                const logoBlob = await logoResponse.blob();
+                const logoBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(logoBlob);
+                });
+
+                // Create image to get dimensions
+                const img = new Image();
+                img.src = logoBase64;
+                await new Promise(resolve => img.onload = resolve);
+
+                // Calculate dimensions to fit within 50x50 while maintaining aspect ratio
+                const maxSize = 50;
+                let logoWidth = img.width;
+                let logoHeight = img.height;
+
+                if (logoWidth > logoHeight) {
+                    logoHeight = (logoHeight * maxSize) / logoWidth;
+                    logoWidth = maxSize;
+                } else {
+                    logoWidth = (logoWidth * maxSize) / logoHeight;
+                    logoHeight = maxSize;
+                }
+
+                doc.addImage(logoBase64, 'PNG', 10, 5, logoWidth, logoHeight);
+            } catch (error) {
+                console.log('Logo not available, using text placeholder');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text('📖 Serenote', 10, 25);
+            }
 
             // Add entry title
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
-            doc.text(entry.title || 'Untitled Entry', 20, 50);
+            doc.text(entry.title || 'Untitled Entry', 50, 25);
 
             let yPosition = 70;
 
@@ -436,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Check if we need a new page
                         if (yPosition + imgHeight > 270) {
                             doc.addPage();
-                            yPosition = 30;
+                            yPosition = 50;
                         }
 
                         // Add image to PDF
@@ -945,6 +1015,8 @@ document.addEventListener('DOMContentLoaded', () => {
                               <option value="serif">📖 Serif</option>
                               <option value="script">🖋️ Script</option>
                               <option value="modern">💼 Modern</option>
+                              <option value="typewriter">⌨️ Typewriter</option>
+                              <option value="bold">💪 Bold</option>
                             </select>
                           </div>
                           <div class="color-selector-container">
@@ -1076,37 +1148,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     function applyTheme(theme) {
-                        // Reset to default
-                        journalEntry.style.background = '';
+                        // Reset to default - clean background
+                        journalEntry.style.background = 'white';
                         journalContainer.style.background = '';
                         journalEntry.style.backgroundImage = '';
                         journalContainer.style.backgroundImage = '';
+                        journalEntry.style.border = '2px solid rgba(139, 115, 85, 0.3)';
+                        journalEntry.style.borderRadius = '8px';
+                        journalEntry.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        journalEntry.style.padding = '24px';
+                        journalEntry.style.lineHeight = '1.6';
 
                         switch(theme) {
                             case 'default':
-                                journalEntry.style.background = 'repeating-linear-gradient(white, white 28px, rgba(139, 115, 85, 0.2) 29px)';
-                                journalEntry.style.border = '1px solid rgba(139, 115, 85, 0.3)';
-                                journalEntry.style.borderRadius = '5px';
+                                journalEntry.style.background = 'repeating-linear-gradient(white, white 28px, rgba(139, 115, 85, 0.08) 29px)';
+                                journalEntry.style.borderColor = 'rgba(139, 115, 85, 0.4)';
+                                journalEntry.style.borderStyle = 'solid';
                                 break;
                             case 'nature':
-                                journalContainer.style.background = 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)';
-                                journalEntry.style.background = 'rgba(255, 255, 255, 0.9)';
-                                journalEntry.style.boxShadow = 'inset 0 0 20px rgba(76, 175, 80, 0.1)';
-                                // Add subtle leaf pattern
-                                journalEntry.style.backgroundImage = 'radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(76, 175, 80, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(76, 175, 80, 0.1) 0%, transparent 50%)';
+                                journalEntry.style.borderColor = 'rgba(76, 175, 80, 0.4)';
+                                journalEntry.style.boxShadow = '0 4px 16px rgba(76, 175, 80, 0.2), inset 0 1px 0 rgba(76, 175, 80, 0.1)';
+                                journalEntry.style.borderRadius = '16px';
+                                journalEntry.style.background = 'linear-gradient(135deg, rgba(232, 245, 233, 0.3), rgba(200, 230, 201, 0.1))';
+                                journalEntry.style.borderStyle = 'double';
+                                journalEntry.style.borderWidth = '3px';
                                 break;
                             case 'abstract':
-                                journalContainer.style.background = 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)';
-                                journalEntry.style.background = 'rgba(255, 255, 255, 0.95)';
-                                // Add geometric pattern
-                                journalEntry.style.backgroundImage = 'linear-gradient(45deg, rgba(102, 126, 234, 0.1) 25%, transparent 25%), linear-gradient(-45deg, rgba(102, 126, 234, 0.1) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(118, 75, 162, 0.1) 75%), linear-gradient(-45deg, transparent 75%, rgba(118, 75, 162, 0.1) 75%)';
-                                journalEntry.style.backgroundSize = '20px 20px';
+                                journalEntry.style.borderColor = 'rgba(102, 126, 234, 0.4)';
+                                journalEntry.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.2), inset 0 1px 0 rgba(102, 126, 234, 0.1)';
+                                journalEntry.style.borderRadius = '20px 0 20px 0';
+                                journalEntry.style.background = 'linear-gradient(45deg, rgba(227, 242, 253, 0.3), rgba(187, 222, 251, 0.1))';
+                                journalEntry.style.borderStyle = 'dashed';
+                                journalEntry.style.borderWidth = '2px';
                                 break;
                             case 'minimalist':
-                                journalContainer.style.background = '#fafafa';
+                                journalEntry.style.borderColor = 'rgba(158, 158, 158, 0.4)';
+                                journalEntry.style.boxShadow = '0 1px 3px rgba(0,0,0, 0.12)';
+                                journalEntry.style.borderRadius = '0';
                                 journalEntry.style.background = 'white';
-                                journalEntry.style.border = '1px solid #e0e0e0';
-                                journalEntry.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                                journalEntry.style.borderStyle = 'solid';
+                                journalEntry.style.borderWidth = '1px';
+                                journalEntry.style.padding = '20px';
                                 break;
                             case 'custom':
                                 const customImage = localStorage.getItem('customBgImage');
@@ -1114,26 +1196,53 @@ document.addEventListener('DOMContentLoaded', () => {
                                     journalContainer.style.backgroundImage = `url(${customImage})`;
                                     journalContainer.style.backgroundSize = 'cover';
                                     journalContainer.style.backgroundPosition = 'center';
-                                    journalEntry.style.background = 'rgba(255, 255, 255, 0.9)';
+                                    journalEntry.style.background = 'rgba(255, 255, 255, 0.95)';
                                     journalEntry.style.backdropFilter = 'blur(10px)';
+                                    journalEntry.style.borderColor = 'rgba(139, 115, 85, 0.5)';
+                                    journalEntry.style.borderStyle = 'solid';
+                                    journalEntry.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)';
+                                } else {
+                                    // Fallback to default if no custom image
+                                    journalEntry.style.background = 'repeating-linear-gradient(white, white 28px, rgba(139, 115, 85, 0.08) 29px)';
+                                    journalEntry.style.borderColor = 'rgba(139, 115, 85, 0.4)';
+                                    journalEntry.style.borderStyle = 'solid';
                                 }
                                 break;
                         }
                     }
 
                     function applyFont(font) {
+                        // Only change font family, don't affect other styling
                         switch(font) {
                             case 'default':
                                 journalEntry.style.fontFamily = 'Poppins, sans-serif';
+                                journalEntry.style.fontWeight = '400';
+                                journalEntry.style.fontStyle = 'normal';
                                 break;
                             case 'serif':
                                 journalEntry.style.fontFamily = 'Georgia, serif';
+                                journalEntry.style.fontWeight = '400';
+                                journalEntry.style.fontStyle = 'normal';
                                 break;
                             case 'script':
                                 journalEntry.style.fontFamily = 'Dancing Script, cursive';
+                                journalEntry.style.fontWeight = '400';
+                                journalEntry.style.fontStyle = 'normal';
                                 break;
                             case 'modern':
                                 journalEntry.style.fontFamily = 'Roboto, sans-serif';
+                                journalEntry.style.fontWeight = '400';
+                                journalEntry.style.fontStyle = 'normal';
+                                break;
+                            case 'typewriter':
+                                journalEntry.style.fontFamily = 'Courier New, monospace';
+                                journalEntry.style.fontWeight = '400';
+                                journalEntry.style.fontStyle = 'normal';
+                                break;
+                            case 'bold':
+                                journalEntry.style.fontFamily = 'Poppins, sans-serif';
+                                journalEntry.style.fontWeight = '600';
+                                journalEntry.style.fontStyle = 'normal';
                                 break;
                         }
                     }
@@ -1430,7 +1539,7 @@ if (filtered.length === 0) {
                             <span class="stat-label">Time Capsules</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number">${Math.round(voiceEntries.reduce((sum, e) => sum + (new Date(e.created_at) - new Date()) / (1000 * 60 * 60 * 24), 0))}</span>
+                            <span class="stat-number">${new Set(voiceEntries.map(e => new Date(e.created_at).toDateString())).size}</span>
                             <span class="stat-label">Days Recorded</span>
                         </div>
                     </div>
@@ -2792,32 +2901,46 @@ if (filtered.length === 0) {
     function applyThemeToModal(modalElement, theme) {
         const contentArea = modalElement.querySelector('#entryFullContent');
 
-        // Reset to default
+        // Reset to clean default
         modalElement.style.background = '';
-        contentArea.style.background = '';
+        contentArea.style.background = 'white';
         contentArea.style.backgroundImage = '';
+        contentArea.style.border = '2px solid rgba(139, 115, 85, 0.3)';
+        contentArea.style.borderRadius = '10px';
+        contentArea.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        contentArea.style.padding = '20px';
+        contentArea.style.lineHeight = '1.6';
 
         switch(theme) {
             case 'default':
-                contentArea.style.background = 'repeating-linear-gradient(white, white 32px, #f8f9fa 33px)';
+                contentArea.style.background = 'repeating-linear-gradient(white, white 32px, rgba(139, 115, 85, 0.08) 33px)';
+                contentArea.style.borderColor = 'rgba(139, 115, 85, 0.4)';
+                contentArea.style.borderStyle = 'solid';
                 break;
             case 'nature':
-                modalElement.style.background = 'linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%)';
-                contentArea.style.background = 'rgba(255, 255, 255, 0.95)';
-                contentArea.style.boxShadow = 'inset 0 0 20px rgba(76, 175, 80, 0.1)';
-                contentArea.style.borderRadius = '10px';
+                contentArea.style.borderColor = 'rgba(76, 175, 80, 0.4)';
+                contentArea.style.boxShadow = '0 4px 16px rgba(76, 175, 80, 0.2), inset 0 1px 0 rgba(76, 175, 80, 0.1)';
+                contentArea.style.borderRadius = '16px';
+                contentArea.style.background = 'linear-gradient(135deg, rgba(232, 245, 233, 0.3), rgba(200, 230, 201, 0.1))';
+                contentArea.style.borderStyle = 'double';
+                contentArea.style.borderWidth = '3px';
                 break;
             case 'abstract':
-                modalElement.style.background = 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)';
-                contentArea.style.background = 'rgba(255, 255, 255, 0.95)';
-                contentArea.style.borderRadius = '10px';
+                contentArea.style.borderColor = 'rgba(102, 126, 234, 0.4)';
+                contentArea.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.2), inset 0 1px 0 rgba(102, 126, 234, 0.1)';
+                contentArea.style.borderRadius = '20px 0 20px 0';
+                contentArea.style.background = 'linear-gradient(45deg, rgba(227, 242, 253, 0.3), rgba(187, 222, 251, 0.1))';
+                contentArea.style.borderStyle = 'dashed';
+                contentArea.style.borderWidth = '2px';
                 break;
             case 'minimalist':
-                modalElement.style.background = '#fafafa';
+                contentArea.style.borderColor = 'rgba(158, 158, 158, 0.4)';
+                contentArea.style.boxShadow = '0 1px 3px rgba(0,0,0, 0.12)';
+                contentArea.style.borderRadius = '0';
                 contentArea.style.background = 'white';
-                contentArea.style.border = '1px solid #e0e0e0';
-                contentArea.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                contentArea.style.borderRadius = '10px';
+                contentArea.style.borderStyle = 'solid';
+                contentArea.style.borderWidth = '1px';
+                contentArea.style.padding = '18px';
                 break;
             case 'custom':
                 const customImage = localStorage.getItem('customBgImage');
@@ -2827,7 +2950,14 @@ if (filtered.length === 0) {
                     modalElement.style.backgroundPosition = 'center';
                     contentArea.style.background = 'rgba(255, 255, 255, 0.95)';
                     contentArea.style.backdropFilter = 'blur(10px)';
-                    contentArea.style.borderRadius = '10px';
+                    contentArea.style.borderColor = 'rgba(139, 115, 85, 0.5)';
+                    contentArea.style.borderStyle = 'solid';
+                    contentArea.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)';
+                } else {
+                    // Fallback to default if no custom image
+                    contentArea.style.background = 'repeating-linear-gradient(white, white 32px, rgba(139, 115, 85, 0.08) 33px)';
+                    contentArea.style.borderColor = 'rgba(139, 115, 85, 0.4)';
+                    contentArea.style.borderStyle = 'solid';
                 }
                 break;
         }
