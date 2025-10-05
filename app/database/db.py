@@ -2,8 +2,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 
-# Use DATABASE_URL from environment, fallback to SQLite for local development
-db_uri = os.environ.get('DATABASE_URL', 'sqlite:///serenote.db')
+# Use DATABASE_URL from environment, fallback to Supabase for deployment
+db_uri = os.environ.get('DATABASE_URL', 'postgresql://postgres:Alok20khatri@db.icenmqlasbqkooprgbka.supabase.co:5432/postgres')
 
 # Create engine based on database type
 if db_uri.startswith('sqlite'):
