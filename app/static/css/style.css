@@ -1,15 +1,16 @@
 :root {
-  --primary-color: #ea580c;
-  --primary-gradient: linear-gradient(135deg, #ea580c, #dc2626);
-  --secondary-gradient: linear-gradient(135deg, #92400e, #dc2626);
-  --bg-gradient: linear-gradient(135deg, #fef7ed 0%, #fed7aa 50%, #fdba74 100%);
-  --text-dark: #2d3748;
-  --text-light: #4a5568;
+  --primary-color: #8b7355;
+  --primary-gradient: linear-gradient(135deg, #8b7355, #a0916b);
+  --secondary-gradient: linear-gradient(135deg, #6b5b47, #8b7355);
+  --bg-gradient: linear-gradient(135deg, #f5f1e8 0%, #ede6d6 50%, #e8dcc0 100%);
+  --text-dark: #4a4a4a;
+  --text-light: #6b6b6b;
   --text-white: #ffffff;
-  --border-light: #e2e8f0;
+  --border-light: #d4c4a8;
   --bg-white-translucent: rgba(255, 255, 255, 0.95);
-  --shadow-color: rgba(0, 0, 0, 0.1);
+  --shadow-color: rgba(139, 115, 85, 0.15);
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-handwritten: "Dancing Script", cursive;
 }
 
 
@@ -112,12 +113,12 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(234, 88, 12, 0.4); /* Can't use var here */
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4); /* Can't use var here */
 }
 
 .register-btn:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.6); /* Can't use var here */
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6); /* Can't use var here */
 }
 
 /* Welcome Section */
@@ -169,7 +170,7 @@ body {
   box-shadow: 0 10px 30px var(--shadow-color);
   text-align: center;
   transition: all 0.3s ease;
-  border: 1px solid rgba(234, 88, 12, 0.1); /* Can't use var here */
+  border: 1px solid rgba(212, 175, 55, 0.1); /* Can't use var here */
   display: flex;
   flex-direction: column;
 }
@@ -220,7 +221,7 @@ body {
   border-radius: 15px;
   padding: 2rem;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-left: 5px solid #ea580c;
+  border-left: 5px solid #d4af37;
 }
 
 .feature-detail h3 {
