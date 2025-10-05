@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="sgrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFF59D"/>
+      <stop offset="100%" stop-color="#FFC107"/>
+    </radialGradient>
+  </defs>
+  <g>
+    <circle cx="50" cy="50" r="10" fill="#6D4C41" />
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(0 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(16 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(32 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(48 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(64 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(80 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(96 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(112 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(128 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(144 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(160 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(176 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(192 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(208 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(224 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(240 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(256 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(272 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(288 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(304 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(320 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(336 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+    <path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(352 50 50)" fill="url(#sgrad)" stroke="rgba(0,0,0,0.06)"/>
+  </g>
+</svg>

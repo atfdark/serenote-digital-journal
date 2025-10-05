@@ -146,21 +146,140 @@ class MoodGarden {
            else if (flowerData.growth_stage >= 0.1) stage = 'sprout';
 
            flower.classList.add(stage);
+           // add flower-type class so CSS selectors like .flower.sunflower .petal work
+           if (flowerData.flower_type) {
+               flower.classList.add(flowerData.flower_type);
+               // set inline CSS var for petal fill color to ensure SVG picks it up
+               try {
+                   flower.style.setProperty('--flower-color', this.getFlowerColor(flowerData.flower_type));
+               } catch (e) { /* ignore if unavailable */ }
+           }
 
            // Create flower structure
            const stem = document.createElement('div');
            stem.className = 'stem';
            flower.appendChild(stem);
 
-           const center = document.createElement('div');
-           center.className = 'center';
-           flower.appendChild(center);
-
+           // create an SVG-based flower (petals as ellipses + center circle)
+           // remove the old center div approach and build an SVG so petals are crisp
            if (stage !== 'seed') {
-               const petals = document.createElement('div');
-               petals.className = `petals ${flowerData.flower_type}`;
-               flower.appendChild(petals);
-           }
+                const svgns = 'http://www.w3.org/2000/svg';
+                const svg = document.createElementNS(svgns, 'svg');
+                svg.setAttribute('viewBox', '0 0 100 100');
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                svg.classList.add('flower-svg', flowerData.flower_type);
+
+                const petalsGroup = document.createElementNS(svgns, 'g');
+                petalsGroup.setAttribute('class', 'petals-group');
+
+                const petalCount = 6;
+                // set svg-level color var so CSS can inherit it; also compute a fallback color
+                const flowerColor = this.getFlowerColor(flowerData.flower_type);
+                svg.style.setProperty('--flower-color', flowerColor);
+
+                // create a simple radial gradient per flower for nicer shading
+                const defs = document.createElementNS(svgns, 'defs');
+                const grad = document.createElementNS(svgns, 'radialGradient');
+                const gradId = `petalGrad-${flowerData.id}`;
+                grad.setAttribute('id', gradId);
+                grad.setAttribute('cx', '50%');
+                grad.setAttribute('cy', '35%');
+                grad.setAttribute('r', '60%');
+
+                const stop1 = document.createElementNS(svgns, 'stop');
+                stop1.setAttribute('offset', '0%');
+                stop1.setAttribute('stop-color', flowerColor);
+                stop1.setAttribute('stop-opacity', '1');
+                const stop2 = document.createElementNS(svgns, 'stop');
+                stop2.setAttribute('offset', '100%');
+                // darken the base color slightly for depth
+                const darken = (hex, amt = 0.15) => {
+                    try {
+                        const c = hex.replace('#','');
+                        const r = Math.max(0, parseInt(c.substring(0,2),16) - Math.round(255*amt));
+                        const g = Math.max(0, parseInt(c.substring(2,4),16) - Math.round(255*amt));
+                        const b = Math.max(0, parseInt(c.substring(4,6),16) - Math.round(255*amt));
+                        return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+                    } catch(e) { return hex; }
+                };
+                stop2.setAttribute('stop-color', darken(flowerColor, 0.18));
+                stop2.setAttribute('stop-opacity', '1');
+
+                grad.appendChild(stop1);
+                grad.appendChild(stop2);
+                defs.appendChild(grad);
+                svg.appendChild(defs);
+
+                // seeded RNG so flowers remain visually stable between renders
+                function seededRandom(seed) {
+                    let s = typeof seed === 'number' ? seed : parseInt(String(seed).replace(/\D/g,'') || '1');
+                    return function() { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+                }
+                const rand = seededRandom(flowerData.id || index);
+
+                // templates per flower type
+                const templates = {
+                    sunflower: [{ count: 22, scale: 0.8, innerScale: 0.7 }],
+                    rose: [ { count: 12, scale: 0.92 }, { count: 8, scale: 0.78, inner:true } ],
+                    tulip: [{ count: 9, scale: 0.98 }],
+                    lily: [{ count: 8, scale: 1.0 }],
+                    lavender: [{ count: 8, scale: 0.95 }],
+                    daisy: [{ count: 16, scale: 0.9 }],
+                    default: [{ count: 8, scale: 1.0 }]
+                };
+
+                const chosen = templates[flowerData.flower_type] || templates.default;
+
+                // base petal path (points up, inner edge near center) - will be rotated via CSS
+                const basePath = `M50 50 C56 40 66 32 50 18 C34 32 44 40 50 50 Z`;
+
+                // create layers (rose has multiple layers)
+                chosen.forEach((layer, layerIdx) => {
+                    const count = layer.count;
+                    const layerScale = layer.scale || 1;
+                    for (let i = 0; i < count; i++) {
+                        const angle = (360 / count) * i;
+
+                        const pet = document.createElementNS(svgns, 'path');
+                        pet.setAttribute('d', basePath);
+                        pet.setAttribute('class', 'petal');
+                        pet.setAttribute('fill', `url(#${gradId})`);
+                        pet.setAttribute('stroke', 'rgba(0,0,0,0.05)');
+                        pet.setAttribute('stroke-width', '0.4');
+
+                        // randomness for organic variation (consistent per flower)
+                        const rotJitter = (rand() - 0.5) * 8; // +/-4deg
+                        const scaleJitter = 1 + (rand() - 0.5) * 0.12; // ~ +/-6%
+                        const ty = 2 + (rand() * 4); // vertical nudge
+
+                        // per-petal css variables
+                        pet.style.setProperty('--petal-idx', (layerIdx * 100 + i).toString());
+                        pet.style.setProperty('--petal-rot', (angle + rotJitter) + 'deg');
+                        pet.style.setProperty('--petal-scale', (layerScale * scaleJitter).toString());
+                        pet.style.setProperty('--petal-ty', `${ty}px`);
+                        pet.style.setProperty('--petal-layer', layerIdx.toString());
+
+                        petalsGroup.appendChild(pet);
+                    }
+                });
+
+                svg.appendChild(petalsGroup);
+
+                // center circle
+                const centerCircle = document.createElementNS(svgns, 'circle');
+                centerCircle.setAttribute('cx', '50');
+                centerCircle.setAttribute('cy', '50');
+                centerCircle.setAttribute('r', '8');
+                centerCircle.setAttribute('class', 'center-circle');
+                svg.appendChild(centerCircle);
+
+                flower.appendChild(svg);
+            } else {
+                // still append a simple center for seeds to show a dot
+                const center = document.createElement('div');
+                center.className = 'center';
+                flower.appendChild(center);
+            }
 
            // Size based on growth stage
            const size = 20 + (flowerData.growth_stage * 40);
@@ -180,6 +299,86 @@ class MoodGarden {
                flower.classList.add('quick-grow');
                flower.style.animationDelay = `${index * 0.2}s`;
            }
+
+            // If this flower is already a bloom on first render, trigger a soft bloom animation
+            if (flowerData.growth_stage >= 0.8) {
+                // ensure bloom class is present
+                flower.classList.add('bloom');
+                // trigger a short 'bloom-open' animation for visual delight
+                setTimeout(() => {
+                    flower.classList.add('growing-bud-to-bloom');
+                    setTimeout(() => flower.classList.remove('growing-bud-to-bloom'), 1400);
+                }, 300 + index * 80);
+            }
+
+                // If fully bloomed, replace the SVG petals with a ready-made detailed bloom SVG
+                if (flowerData.growth_stage >= 0.8) {
+                    // give the bloom animation a moment, then swap to final asset (img)
+                    setTimeout(() => {
+                        const svgEl = flower.querySelector('svg.flower-svg');
+                        if (svgEl) {
+                            try {
+                                // prefer mood-specific assets first (e.g. happy -> sunflower), then flower_type, then default
+                                // map moods to preferred asset names (use the exact filename without extension)
+                                // we've placed happy.png in the assets folder, so map 'happy' -> 'happy'
+                                const moodToAsset = { happy: 'happy' };
+                                const candidates = [];
+                                // if the mood has a mapped asset (happy -> sunflower), prefer that
+                                if (flowerData.mood_type && moodToAsset[flowerData.mood_type]) {
+                                    candidates.push(moodToAsset[flowerData.mood_type]);
+                                }
+                                // try direct mood name as a candidate (happy.png)
+                                if (flowerData.mood_type) candidates.push(flowerData.mood_type);
+                                // then the explicit flower_type
+                                if (flowerData.flower_type) candidates.push(flowerData.flower_type);
+                                // finally the default
+                                candidates.push('default');
+
+                                // build an ordered list of sources to try (png, webp, svg for each candidate)
+                                const tried = new Set();
+                                const trySources = [];
+                                const exts = ['png', 'webp', 'svg'];
+                                candidates.forEach(c => {
+                                    exts.forEach(ext => {
+                                        const path = `/static/assets/flowers/${c}.${ext}`;
+                                        if (!tried.has(path)) { tried.add(path); trySources.push(path); }
+                                    });
+                                });
+
+                                const img = document.createElement('img');
+                                img.alt = `${flowerData.mood_type} flower`;
+                                img.className = 'final-bloom';
+                                img.style.width = '100%';
+                                img.style.height = '100%';
+                                img.style.objectFit = 'contain';
+
+                                let attempt = 0;
+                                img.onload = () => {
+                                    // successful load - replace svg
+                                    try { svgEl.replaceWith(img); } catch(e) { console.warn(e); }
+                                    // ensure the image transition runs after insertion
+                                    requestAnimationFrame(() => {
+                                        setTimeout(() => img.classList.add('visible'), 30);
+                                    });
+                                };
+                                img.onerror = () => {
+                                    attempt += 1;
+                                    if (attempt < trySources.length) {
+                                        img.src = trySources[attempt];
+                                    } else {
+                                        // final fallback: remove img and keep the generated svg
+                                        img.remove();
+                                        console.warn('No bloom asset found for', type);
+                                    }
+                                };
+                                // start with first candidate
+                                img.src = trySources[0];
+                            } catch (e) {
+                                console.error('Failed to swap bloom asset:', e);
+                            }
+                        }
+                    }, 900 + index * 80);
+                }
 
            this.container.appendChild(flower);
        });
@@ -555,4 +754,37 @@ async function logMood(userId, moodType, intensity = 1.0) {
 function renderGarden(gardenData, targetElement) {
    if (!targetElement) return;
    new MoodGarden(targetElement, gardenData.user_id);
+}
+
+// Returns inner SVG markup for a finished bloom for the given flowerData
+function getBloomSVGMarkup(flowerData) {
+        const type = flowerData.flower_type || 'default';
+        const color = (new MoodGarden(document.createElement('div'), 0)).getFlowerColor(type);
+        // simple polished SVG examples per type (could be expanded)
+        const svgs = {
+                sunflower: `
+                        <defs>
+                            <radialGradient id="g" cx="50%" cy="40%"><stop offset="0%" stop-color="#FFF59D"/><stop offset="100%" stop-color="#FFC107"/></radialGradient>
+                        </defs>
+                        <g transform="translate(0,0)">
+                            <circle cx="50" cy="50" r="12" fill="#6D4C41" />
+                            ${Array.from({length:20}).map((_,i)=>`<path d="M50 18 C56 34 66 42 50 58 C34 42 44 34 50 18 Z" transform="rotate(${(360/20)*i} 50 50)" fill="url(#g)" stroke="rgba(0,0,0,0.06)"/>`).join('')}
+                        </g>`,
+                rose: `
+                        <g>
+                            <circle cx="50" cy="52" r="10" fill="#F06292" />
+                            <path d="M50 36 C58 36 66 44 60 52 C52 64 48 68 50 36 Z" fill="#F48FB1" opacity="0.95"/>
+                            <path d="M50 40 C56 40 62 46 58 52 C52 62 48 62 50 40 Z" fill="#F06292"/>
+                        </g>`,
+                daisy: `
+                        <g>
+                            ${Array.from({length:16}).map((_,i)=>`<ellipse rx="6" ry="18" cx="50" cy="28" transform="rotate(${(360/16)*i} 50 50)" fill="#FFF59D" stroke="#FFB300"/>`).join('')}
+                            <circle cx="50" cy="50" r="10" fill="#FFB300" />
+                        </g>`,
+                default: `
+                        <g>
+                            <circle cx="50" cy="50" r="10" fill="${color}" />
+                        </g>`
+        };
+        return svgs[type] || svgs.default;
 }

@@ -47,6 +47,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+
+            // Responsive tweak: adjust legend position for small widths (placed after chart creation)
+            function adjustMoodChartLayout() {
+                if (!moodChartInstance) return;
+                const w = chartContainer.clientWidth;
+                if (w < 420) {
+                    moodChartInstance.options.plugins.legend.position = 'bottom';
+                    moodChartInstance.options.aspectRatio = 1;
+                } else {
+                    moodChartInstance.options.plugins.legend.position = 'right';
+                    moodChartInstance.options.aspectRatio = 1;
+                }
+                moodChartInstance.update();
+            }
+
+            // initial adjust and on resize
+            adjustMoodChartLayout();
+            window.addEventListener('resize', () => {
+                adjustMoodChartLayout();
+                if (moodChartInstance) moodChartInstance.resize();
+            });
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({ message: "Failed to update" }));
                 throw new Error(errorData.message);
@@ -739,7 +760,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1,
                     plugins: {
                         legend: {
                             position: 'bottom',
@@ -801,7 +823,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const current = Math.floor(start + (end - start) * progress);
-            element.textContent = `📊 Total Mood Entries: ${current}`;
+            // Display only the numeric counter (remove the text label per request)
+            element.textContent = `${current}`;
+            // Keep an accessible label for screen readers
+            element.setAttribute('aria-label', `Total mood entries ${current}`);
             if (progress < 1) requestAnimationFrame(animate);
         };
         requestAnimationFrame(animate);
@@ -944,19 +969,22 @@ document.addEventListener('DOMContentLoaded', () => {
             day: "numeric"
         });
 
-        content.innerHTML = `
-        <div class="journal-header">
-          <div class="date-box">All Entries</div>
-          <h2>📖 Journal</h2>
-          <div class="journal-actions">
-            <button id="exportJournal" class="export-btn">📄 Export</button>
-          </div>
-          <div class="journal-stats" id="journalStats"></div>
-        </div>
-        <div class="journal-container" id="journalContainer">
-          <div class="journal-page-number">Page 1</div>
-          <p>Loading entries...</p>
-        </div>`;
+                content.innerHTML = `
+                <div class="journal-header centered-header">
+                    <h2>📖 Journal</h2>
+                </div>
+
+                <div class="journal-header-row">
+                    <div id="journalStats" class="journal-stats-inline" aria-hidden="false"></div>
+                    <div class="right-toolbar">
+                        <button id="exportJournal" class="export-btn">📄 Export</button>
+                    </div>
+                </div>
+
+                <div class="journal-container" id="journalContainer">
+                    <div class="journal-page-number">Page 1</div>
+                    <p>Loading entries...</p>
+                </div>`;
 
         // Load journal stats
         loadJournalStats();
@@ -975,69 +1003,91 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- Writing area always available ---
                 if (true) {
                     const writeBox = document.createElement("div");
-                    writeBox.className = "journal-writing-area";
-                    writeBox.innerHTML = `
-                        <div class="writing-header">
-                            <h3>✍️ Write Your Thoughts</h3>
-                            <div class="writing-prompt" id="writingPrompt">What's on your mind today?</div>
-                            <button id="generatePrompt" class="generate-prompt-btn">🎲 Generate Writing Prompt</button>
-                        </div>
-                        <input id="journalTitle" placeholder="Give your entry a title..." />
-                        <input id="journalTags" placeholder="Add tags (comma separated): work, personal, goals..." />
-                        <textarea id="journalEntry" placeholder="Start writing your journal entry here..."></textarea>
-                        <div class="selectors-container">
-                          <div class="mood-selector-container">
-                            <label for="moodSelect">How are you feeling today?</label>
-                            <select id="moodSelect" aria-label="Select your current mood">
-                              <option value="Happy">😊 Happy</option>
-                              <option value="Sad">😔 Sad</option>
-                              <option value="Excited">🤩 Excited</option>
-                              <option value="Calm">😌 Calm</option>
-                              <option value="Angry">😡 Angry</option>
-                              <option value="Neutral" selected>😐 Neutral</option>
-                            </select>
-                          </div>
-                          <div class="theme-selector-container">
-                            <label for="themeSelect">Choose your writing theme</label>
-                            <select id="themeSelect" aria-label="Select journal background theme">
-                              <option value="default" selected>📝 Default (Lined Paper)</option>
-                              <option value="nature">🌿 Nature</option>
-                              <option value="abstract">🎨 Abstract</option>
-                              <option value="minimalist">✨ Minimalist</option>
-                              <option value="custom">🖼️ Custom Upload</option>
-                            </select>
-                            <input type="file" id="customBgUpload" accept="image/*" style="display:none;" aria-label="Upload custom background image">
-                          </div>
-                          <div class="font-selector-container">
-                            <label for="fontSelect">Choose your font</label>
-                            <select id="fontSelect" aria-label="Select journal font">
-                              <option value="default" selected>✍️ Default</option>
-                              <option value="serif">📖 Serif</option>
-                              <option value="script">🖋️ Script</option>
-                              <option value="modern">💼 Modern</option>
-                              <option value="typewriter">⌨️ Typewriter</option>
-                              <option value="bold">💪 Bold</option>
-                            </select>
-                          </div>
-                          <div class="color-selector-container">
-                            <label for="textColorPicker">Text Color</label>
-                            <input type="color" id="textColorPicker" value="#333333" aria-label="Choose text color">
-                            <label for="bgColorPicker">Background Color</label>
-                            <input type="color" id="bgColorPicker" value="#ffffff" aria-label="Choose background color">
-                          </div>
-                        </div>
-                        <div class="capsule-container">
-                            <label>
-                                <input type="checkbox" id="isCapsule" /> 📦 Make this a Time Capsule
-                            </label>
-                            <input type="datetime-local" id="capsuleDate" style="display:none; margin-top:10px;" />
-                        </div>
-                        <div class="save-actions">
-                            <button id="saveJournal" class="save-btn">💾 Save Entry</button>
-                            <button id="previewJournal" class="preview-btn">👁️ Preview</button>
-                        </div>
-                        <p id="saveMsg" class="hidden">✅ Saved!</p>
-                        <hr>`;
+                                                            writeBox.className = "journal-writing-area";
+                                                            writeBox.innerHTML = `
+                                    <div class="writing-header">
+                                        <div class="writing-prompt" id="writingPrompt">What's on your mind today?</div>
+                                        <button id="generatePrompt" class="generate-prompt-btn">🎲 Generate Writing Prompt</button>
+                                    </div>
+
+                                                                    <div class="writing-body">
+                                                                        <div class="writing-left">
+                                                                            <div class="options-block-inline">
+                                                                                <button id="optionsToggle" class="options-toggle">Options ▾</button>
+                                                                                <div id="optionsPanel" class="options-panel" aria-hidden="true">
+                                                                                    <div class="selectors-container selectors-below">
+                                                                                        <div class="selectors-grid">
+                                                                                            <div class="theme-selector-container">
+                                                                                                <label for="themeSelect">Theme</label>
+                                                                                                <select id="themeSelect" aria-label="Select journal background theme">
+                                                                                                    <option value="default" selected>Default (Lined)</option>
+                                                                                                    <option value="nature">Nature</option>
+                                                                                                    <option value="abstract">Abstract</option>
+                                                                                                    <option value="minimalist">Minimalist</option>
+                                                                                                    <option value="custom">Custom Upload</option>
+                                                                                                </select>
+                                                                                                <input type="file" id="customBgUpload" accept="image/*" style="display:none;" aria-label="Upload custom background image">
+                                                                                            </div>
+                                                                                            <div class="font-selector-container">
+                                                                                                <label for="fontSelect">Font</label>
+                                                                                                <select id="fontSelect" aria-label="Select journal font">
+                                                                                                    <option value="default" selected>Default</option>
+                                                                                                    <option value="serif">Serif</option>
+                                                                                                    <option value="script">Script</option>
+                                                                                                    <option value="modern">Modern</option>
+                                                                                                    <option value="typewriter">Typewriter</option>
+                                                                                                    <option value="bold">Bold</option>
+                                                                                                </select>
+                                                                                            </div>
+                                                                                            <div class="color-selector-container">
+                                                                                                <label for="textColorPicker">Text</label>
+                                                                                                <input type="color" id="textColorPicker" value="#333333" aria-label="Choose text color">
+                                                                                                <label for="bgColorPicker">BG</label>
+                                                                                                <input type="color" id="bgColorPicker" value="#ffffff" aria-label="Choose background color">
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <input id="journalTitle" placeholder="Give your entry a title..." />
+                                                                            <textarea id="journalEntry" placeholder="Start writing your journal entry here..."></textarea>
+
+                                                                            <div class="writing-meta-row">
+                                                                                <input id="journalTags" placeholder="Add tags (comma separated): work, personal, goals..." />
+                                                                                <div class="capsule-compact">
+                                                                                    <label class="capsule-label">
+                                                                                            <input type="checkbox" id="isCapsule" /> 📦 Time Capsule
+                                                                                    </label>
+                                                                                    <input type="datetime-local" id="capsuleDate" style="display:none;" />
+                                                                                </div>
+                                                                            </div>
+                                                                            
+                                                                                <!-- Mood + actions: placed below textarea as requested -->
+                                                                                <div class="below-text-actions">
+                                                                                    <div class="mood-inline">
+                                                                                        <label for="moodSelect">How are you feeling?</label>
+                                                                                        <select id="moodSelect" aria-label="Select your current mood">
+                                                                                            <option value="Happy">😊 Happy</option>
+                                                                                            <option value="Sad">😔 Sad</option>
+                                                                                            <option value="Excited">🤩 Excited</option>
+                                                                                            <option value="Calm">😌 Calm</option>
+                                                                                            <option value="Angry">😡 Angry</option>
+                                                                                            <option value="Neutral" selected>😐 Neutral</option>
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div class="action-inline">
+                                                                                        <button id="saveJournal" class="save-btn">💾 Save Entry</button>
+                                                                                        <button id="previewJournal" class="preview-btn">👁️ Preview</button>
+                                                                                        <button id="exportJournalInline" class="export-btn small">📄 Export</button>
+                                                                                    </div>
+                                                                                </div>
+                                                                        </div>
+
+                                                                        <!-- options are placed inline inside the left column -->
+                                                                    </div>
+
+                                                                    <p id="saveMsg" class="hidden">✅ Saved!</p>
+                                                                    <hr>`;
                     container.appendChild(writeBox);
 
                     // Add preview functionality
@@ -1048,6 +1098,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!content.trim()) return alert("Please write something to preview!");
                         showJournalPreview(title, content, mood);
                     });
+
+                    // Wire the inline export button to the existing exportJournal function (if present)
+                    const exportInlineBtn = document.getElementById('exportJournalInline');
+                    if (exportInlineBtn) {
+                        exportInlineBtn.addEventListener('click', () => {
+                            try { exportJournal(); } catch (e) { console.error('Export inline failed', e); }
+                        });
+                    }
 
                     // Writing prompts functionality
                     const writingPrompts = [
@@ -1126,6 +1184,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             reader.readAsDataURL(file);
                         }
                     });
+
+                    // Options panel toggle (for theme/font/color panel)
+                    const optionsToggle = document.getElementById('optionsToggle');
+                    const optionsPanel = document.getElementById('optionsPanel');
+                    if (optionsToggle && optionsPanel) {
+                        optionsToggle.addEventListener('click', () => {
+                            const hidden = optionsPanel.getAttribute('aria-hidden') === 'true';
+                            optionsPanel.setAttribute('aria-hidden', hidden ? 'false' : 'true');
+                        });
+                    }
 
                     // Font selector logic
                     fontSelect.addEventListener("change", (e) => {

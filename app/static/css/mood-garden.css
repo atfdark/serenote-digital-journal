@@ -432,6 +432,11 @@
    z-index: 1;
 }
 
+/* Hide the stem when the flower has progressed beyond a seed (petals present) */
+.flower:not(.seed) .stem {
+    display: none;
+}
+
 /* Watering Effects */
 .watering-effect {
    position: absolute;
