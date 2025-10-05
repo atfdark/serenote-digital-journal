@@ -23,7 +23,7 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = upload_folder
 
     # 📂 Initialize database
-    init_db()
+    # init_db()
 
     # 🌍 Allow frontend JS to call backend (important if frontend runs separately)
     CORS(app)
