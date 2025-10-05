@@ -2,8 +2,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 
-# Use DATABASE_URL from environment, fallback to SQLite in /tmp for serverless
-db_uri = os.environ.get('DATABASE_URL', 'sqlite:////tmp/serenote.db')
+# Use SQLite in /tmp for serverless deployment
+db_uri = 'sqlite:////tmp/serenote.db'
 
 # Create engine based on database type
 if db_uri.startswith('sqlite'):
