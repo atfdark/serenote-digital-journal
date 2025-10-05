@@ -4,14 +4,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 
 # --- Start of Changes ---
 
-# Get the absolute path of the project's root directory (serenotes1/)
-# os.path.dirname(__file__) -> /app/database
-# os.path.join(..., '..') -> /app
-# os.path.join(..., '..') -> /
-basedir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-# Create the full, absolute path to the database file
-db_path = os.path.join(basedir, 'serenote.db')
+# For Vercel deployment, use /tmp for writable database
+db_path = os.path.join('/tmp', 'serenote.db')
 db_uri = 'sqlite:///' + db_path
 
 # --- End of Changes ---

@@ -13,15 +13,13 @@ from app.routes.todo_routes import todo_routes
 def create_app():
     app = Flask(__name__)
     
-    # Define the absolute path for the upload folder
-    upload_folder = os.path.join(app.root_path, 'static', 'uploads')
+    # For Vercel deployment, use /tmp for uploads
+    upload_folder = os.path.join('/tmp', 'uploads')
     os.makedirs(upload_folder, exist_ok=True)
 
     # 🔐 Secret key for sessions (JWT or cookies if needed)
     app.config["SECRET_KEY"] = "your_super_secret_key"
     # 📂 Upload folder configuration
-    upload_folder = os.path.join(app.root_path, 'static', 'uploads')
-    os.makedirs(upload_folder, exist_ok=True)
     app.config['UPLOAD_FOLDER'] = upload_folder
 
     # 📂 Initialize database
