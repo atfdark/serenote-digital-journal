@@ -98,9 +98,9 @@ class MoodGarden {
        can.title = 'Water your garden (click to water)';
 
        // Check if already watered today
-       const today = new Date().toDateString();
+       const today = toIST(new Date()).toDateString();
        const lastWatered = this.gardenData.last_watered ?
-           new Date(this.gardenData.last_watered).toDateString() : null;
+           toIST(new Date(this.gardenData.last_watered)).toDateString() : null;
 
        if (lastWatered === today) {
            can.classList.add('disabled');
@@ -645,7 +645,7 @@ class MoodGarden {
    startSeasonalEffects() {
        // Update seasonal effects every hour
        setInterval(() => {
-           const now = new Date();
+           const now = toIST(new Date());
            const hour = now.getHours();
            const season = this.gardenData.current_season;
 

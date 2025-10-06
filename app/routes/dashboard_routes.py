@@ -2,7 +2,10 @@ from flask import Blueprint, jsonify
 from app.database.db import db_session
 from app.database.models import Entry
 from sqlalchemy import func, desc
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 dashboard_api = Blueprint("dashboard_api", __name__)
 
@@ -32,7 +35,7 @@ def get_dashboard_insights(user_id):
     total_entries = db_session.query(func.count(Entry.id)).filter(Entry.user_id == user_id).scalar()
 
     # Current streak (consecutive days with entries)
-    today = datetime.now().date()
+    today = datetime.now(IST).date()
     streak = 0
     check_date = today
     while True:
@@ -53,7 +56,7 @@ def get_dashboard_insights(user_id):
     top_mood = mood_query[0] if mood_query else "None"
 
     # Recent trend (last 7 days mood average - simplified)
-    week_ago = datetime.now() - timedelta(days=7)
+    week_ago = datetime.now(IST) - timedelta(days=7)
     recent_entries = db_session.query(Entry).filter(
         Entry.user_id == user_id,
         Entry.created_at >= week_ago

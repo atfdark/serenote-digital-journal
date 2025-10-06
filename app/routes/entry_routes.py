@@ -4,9 +4,12 @@ from flask import Blueprint, request, jsonify, current_app
 from app.database.db import db_session
 from app.database.models import Entry
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import openai
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 entry_routes = Blueprint("entry", __name__)
 
@@ -72,7 +75,9 @@ def delete_entry(entry_id):
 
 @entry_routes.route("/voice", methods=["POST"])
 def save_voice_note():
+    print("Voice note: Received POST request to /entries/voice")
     if 'audio' not in request.files:
+        print("Voice note: No audio file in request.files")
         return jsonify({"message": "No audio file provided"}), 400
 
     user_id = request.form.get("user_id")
@@ -80,15 +85,28 @@ def save_voice_note():
     is_capsule = request.form.get("is_capsule", "false").lower() == "true"
     capsule_open_date = request.form.get("capsule_open_date")
 
+    print(f"Voice note: user_id={user_id}, file.filename={file.filename}, is_capsule={is_capsule}")
+
     if not user_id or not file.filename:
+        print("Voice note: Missing user_id or filename")
         return jsonify({"message": "Missing required data"}), 400
 
     upload_folder = current_app.config['UPLOAD_FOLDER']
-    filename = secure_filename(f"voice_{user_id}_{datetime.now().timestamp()}_{file.filename}")
+    print(f"Voice note: upload_folder={upload_folder}")
+
+    filename = secure_filename(f"voice_{user_id}_{datetime.now(IST).timestamp()}_{file.filename}")
     filepath = os.path.join(upload_folder, filename)
-    file.save(filepath)
+    print(f"Voice note: Saving to filepath={filepath}")
+
+    try:
+        file.save(filepath)
+        print("Voice note: File saved successfully")
+    except Exception as e:
+        print(f"Voice note: Error saving file: {e}")
+        return jsonify({"message": "Failed to save audio file"}), 500
 
     web_path = os.path.join('static', 'uploads', filename).replace("\\", "/")
+    print(f"Voice note: web_path={web_path}")
 
     capsule_date = None
     if is_capsule and capsule_open_date:
@@ -97,17 +115,23 @@ def save_voice_note():
         except ValueError:
             return jsonify({"message": "Invalid capsule open date format"}), 400
 
-    entry = Entry(
-        user_id=user_id,
-        title=request.form.get("title"),
-        mood=request.form.get("mood"),
-        type="voice",
-        audio_path=web_path,
-        is_capsule=is_capsule,
-        capsule_open_date=capsule_date
-    )
-    db_session.add(entry)
-    db_session.commit()
+    try:
+        entry = Entry(
+            user_id=user_id,
+            title=request.form.get("title"),
+            mood=request.form.get("mood"),
+            type="voice",
+            audio_path=web_path,
+            is_capsule=is_capsule,
+            capsule_open_date=capsule_date
+        )
+        db_session.add(entry)
+        db_session.commit()
+        print("Voice note: Database entry saved successfully")
+    except Exception as e:
+        print(f"Voice note: Error saving to database: {e}")
+        return jsonify({"message": "Failed to save voice note"}), 500
+
     return jsonify({"message": "Voice note saved successfully"})
 
 @entry_routes.route("/generate-prompts", methods=["POST"])

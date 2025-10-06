@@ -1408,8 +1408,8 @@ if (filtered.length === 0) {
 
         const entryDateStr = toIST(new Date(entry.created_at)).toLocaleDateString("en-CA");
         const isToday = entryDateStr === todayStr;
-        const now = new Date();
-        const isLocked = entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now;
+        const now = toIST(new Date());
+        const isLocked = entry.is_capsule && entry.capsule_open_date && toIST(new Date(entry.capsule_open_date)) > now;
 
         let actionsHTML = "";
         if (!isLocked) {
@@ -1517,6 +1517,23 @@ if (filtered.length === 0) {
 
     function loadVoiceNotes() {
         if (voiceInterval) clearInterval(voiceInterval);
+
+        // Check browser support
+        const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
+        const hasGetUserMedia = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+
+        console.log("Voice note: Browser support check - MediaRecorder:", hasMediaRecorder, "getUserMedia:", hasGetUserMedia);
+
+        if (!hasMediaRecorder || !hasGetUserMedia) {
+            content.innerHTML = `
+            <div class="voice-header">
+                <h1>🎙 Voice Notes</h1>
+                <p class="voice-msg">❌ Your browser doesn't support voice recording.</p>
+                <p>Please use a modern browser like Chrome, Firefox, or Edge for voice notes.</p>
+            </div>`;
+            return;
+        }
+
         content.innerHTML = `
       <div class="voice-header">
         <h1>🎙 Voice Notes</h1>
@@ -1668,23 +1685,34 @@ if (filtered.length === 0) {
         }
 
         recordBtn.addEventListener("click", async () => {
+            console.log("Voice note: Record button clicked, isRecording:", isRecording);
             if (isRecording) {
+                console.log("Voice note: Stopping recording");
                 mediaRecorder.stop();
             } else {
                 try {
+                    console.log("Voice note: Requesting microphone access");
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    console.log("Voice note: Microphone access granted");
+
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log("Voice note: AudioContext created");
+
                     analyser = audioContext.createAnalyser();
                     source = audioContext.createMediaStreamSource(stream);
                     source.connect(analyser);
                     analyser.fftSize = 2048;
                     dataArray = new Uint8Array(analyser.fftSize);
-                    
+
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    
+                    mediaRecorder.ondataavailable = e => {
+                        console.log("Voice note: Audio data available, size:", e.data.size);
+                        audioChunks.push(e.data);
+                    };
+
                     mediaRecorder.onstart = () => {
+                        console.log("Voice note: Recording started");
                         isRecording = true;
                         voiceStatus.textContent = "🔴 Recording...";
                         recordBtn.textContent = "⏹️ Stop";
@@ -1695,8 +1723,10 @@ if (filtered.length === 0) {
                     };
 
                     mediaRecorder.onstop = () => {
+                        console.log("Voice note: Recording stopped, chunks:", audioChunks.length);
                         isRecording = false;
                         lastBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        console.log("Voice note: Blob created, size:", lastBlob.size);
                         voiceStatus.textContent = "🛑 Recording stopped. Ready to save.";
                         recordBtn.textContent = "🔴 Record";
                         [saveBtn, deleteBtn, timeCapsuleBtn].forEach(btn => btn.disabled = false);
@@ -1705,10 +1735,21 @@ if (filtered.length === 0) {
                         cancelAnimationFrame(animationId);
                     };
 
+                    console.log("Voice note: Starting MediaRecorder");
                     mediaRecorder.start();
 
                 } catch (err) {
-                    alert("Microphone access denied!");
+                    console.error("Voice note: Error accessing microphone:", err);
+                    let errorMessage = "Microphone access denied or failed!";
+                    if (err.name === 'NotAllowedError') {
+                        errorMessage = "Microphone access denied. Please allow microphone access and try again.";
+                    } else if (err.name === 'NotFoundError') {
+                        errorMessage = "No microphone found. Please check your microphone connection.";
+                    } else if (err.name === 'NotReadableError') {
+                        errorMessage = "Microphone is already in use by another application.";
+                    }
+                    voiceStatus.textContent = "❌ " + errorMessage;
+                    alert(errorMessage);
                 }
             }
         });
@@ -1729,15 +1770,19 @@ if (filtered.length === 0) {
         });
 
         saveBtn.addEventListener("click", async () => {
+            console.log("Voice note: Save button clicked, blob exists:", !!lastBlob);
             if (!lastBlob) return;
             const formData = new FormData();
             formData.append('audio', lastBlob, 'voice.webm');
             formData.append('user_id', userId);
             formData.append('title', 'Voice Note');
             formData.append('mood', 'Neutral'); // or prompt for mood
+            console.log("Voice note: FormData prepared, blob size:", lastBlob.size);
 
             try {
+                console.log("Voice note: Sending POST request to /entries/voice");
                 await api.post('/entries/voice', formData, true);
+                console.log("Voice note: Save request successful");
 
                 // Update the mood garden with the voice note
                 try {
@@ -1763,6 +1808,7 @@ if (filtered.length === 0) {
                 loadVoiceStats();
                 renderRecordings();
             } catch (err) {
+                console.error("Voice note: Save failed:", err);
                 voiceStatus.textContent = "❌ Failed to save.";
             }
         });
@@ -1821,9 +1867,12 @@ if (filtered.length === 0) {
             if (!list) return;
             list.innerHTML = "";
             try {
+                console.log("Voice note: Fetching entries for user", userId);
                 const entries = await api.get(`/entries/user/${userId}`);
+                console.log("Voice note: Total entries received:", entries.length);
                 const voiceEntries = entries.filter(e => e.type === 'voice');
-                const now = new Date();
+                console.log("Voice note: Voice entries found:", voiceEntries.length);
+                const now = toIST(new Date());
 
                 if (voiceEntries.length === 0) {
                     list.innerHTML = "<p>No recordings yet.</p>";
@@ -1846,6 +1895,7 @@ if (filtered.length === 0) {
         
                     const audio = document.createElement("audio");
                     audio.controls = true;
+                    console.log("Voice note: Setting audio src to:", `/${entry.audio_path}`);
         
                     const delBtn = document.createElement("button");
                     delBtn.classList.add("delete-note");
@@ -2047,7 +2097,7 @@ if (filtered.length === 0) {
         });
 
         todoListEl.innerHTML = filteredTodos.map(todo => {
-            const isOverdue = todo.due_date && new Date(todo.due_date) < new Date() && !todo.completed;
+            const isOverdue = todo.due_date && toIST(new Date(todo.due_date)) < toIST(new Date()) && !todo.completed;
             const priorityClass = `priority-${todo.priority}`;
             const categoryEmoji = getCategoryEmoji(todo.category);
 
@@ -2251,8 +2301,8 @@ if (filtered.length === 0) {
     }
 
     function formatDueDate(dueDate) {
-        const date = new Date(dueDate);
-        const now = new Date();
+        const date = toIST(new Date(dueDate));
+        const now = toIST(new Date());
         const diffTime = date - now;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -2316,7 +2366,7 @@ if (filtered.length === 0) {
                             </div>
                             <div class="form-group">
                                 <label for="editDueDate">Due Date</label>
-                                <input type="datetime-local" id="editDueDate" value="${todo.due_date ? new Date(todo.due_date).toISOString().slice(0, 16) : ''}" />
+                                <input type="datetime-local" id="editDueDate" value="${todo.due_date ? toIST(new Date(todo.due_date)).toISOString().slice(0, 16) : ''}" />
                             </div>
                             <div class="modal-buttons">
                                 <button type="button" id="cancelEditBtn">Cancel</button>
@@ -2594,8 +2644,8 @@ if (filtered.length === 0) {
                 dateEl.classList.add("date");
                 dateEl.textContent = d;
                 const date = new Date(year, month, d);
-                dateEl.dataset.date = date.toLocaleDateString("en-CA");
-                let today = new Date();
+                dateEl.dataset.date = toIST(date).toLocaleDateString("en-CA");
+                let today = toIST(new Date());
                 if (d === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
                     dateEl.classList.add("today");
                 }
