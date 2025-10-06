@@ -1729,11 +1729,32 @@ if (filtered.length === 0) {
                     analyser.fftSize = 2048;
                     dataArray = new Uint8Array(analyser.fftSize);
 
-                    mediaRecorder = new MediaRecorder(stream);
+                    // Try different MIME types for better compatibility
+                    const mimeTypes = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/mp4',
+                        'audio/wav',
+                        'audio/ogg;codecs=opus'
+                    ];
+
+                    let selectedMimeType = 'audio/webm';
+                    for (const mimeType of mimeTypes) {
+                        if (MediaRecorder.isTypeSupported(mimeType)) {
+                            selectedMimeType = mimeType;
+                            break;
+                        }
+                    }
+
+                    console.log("Voice note: Using MIME type:", selectedMimeType);
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
                     audioChunks = [];
+
                     mediaRecorder.ondataavailable = e => {
                         console.log("Voice note: Audio data available, size:", e.data.size);
-                        audioChunks.push(e.data);
+                        if (e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
                     };
 
                     mediaRecorder.onstart = () => {
@@ -1750,8 +1771,17 @@ if (filtered.length === 0) {
                     mediaRecorder.onstop = () => {
                         console.log("Voice note: Recording stopped, chunks:", audioChunks.length);
                         isRecording = false;
-                        lastBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                        console.log("Voice note: Blob created, size:", lastBlob.size);
+
+                        if (audioChunks.length === 0) {
+                            voiceStatus.textContent = "❌ No audio data recorded. Please try again.";
+                            recordBtn.textContent = "🔴 Record";
+                            pauseBtn.disabled = true;
+                            return;
+                        }
+
+                        lastBlob = new Blob(audioChunks, { type: selectedMimeType });
+                        console.log("Voice note: Blob created, size:", lastBlob.size, "type:", selectedMimeType);
+
                         voiceStatus.textContent = "🛑 Recording stopped. Ready to save.";
                         recordBtn.textContent = "🔴 Record";
                         [saveBtn, deleteBtn, timeCapsuleBtn].forEach(btn => btn.disabled = false);
@@ -1760,8 +1790,14 @@ if (filtered.length === 0) {
                         cancelAnimationFrame(animationId);
                     };
 
+                    mediaRecorder.onerror = (event) => {
+                        console.error("Voice note: MediaRecorder error:", event.error);
+                        voiceStatus.textContent = "❌ Recording error. Please try again.";
+                        resetVoiceRecorder();
+                    };
+
                     console.log("Voice note: Starting MediaRecorder");
-                    mediaRecorder.start();
+                    mediaRecorder.start(1000); // Collect data every second for better streaming
 
                 } catch (err) {
                     console.error("Voice note: Error accessing microphone:", err);
@@ -1802,18 +1838,35 @@ if (filtered.length === 0) {
 
         saveBtn.addEventListener("click", async () => {
             console.log("Voice note: Save button clicked, blob exists:", !!lastBlob);
-            if (!lastBlob) return;
+            if (!lastBlob) {
+                voiceStatus.textContent = "❌ No recording to save.";
+                return;
+            }
 
             // Add haptic feedback for mobile
             if ('vibrate' in navigator) {
                 navigator.vibrate(40);
             }
+
+            // Determine file extension based on MIME type
+            let fileExtension = 'webm';
+            if (lastBlob.type.includes('mp4')) {
+                fileExtension = 'm4a';
+            } else if (lastBlob.type.includes('wav')) {
+                fileExtension = 'wav';
+            } else if (lastBlob.type.includes('ogg')) {
+                fileExtension = 'ogg';
+            }
+
             const formData = new FormData();
-            formData.append('audio', lastBlob, 'voice.webm');
+            formData.append('audio', lastBlob, `voice.${fileExtension}`);
             formData.append('user_id', userId);
             formData.append('title', 'Voice Note');
             formData.append('mood', 'Neutral'); // or prompt for mood
-            console.log("Voice note: FormData prepared, blob size:", lastBlob.size);
+            console.log("Voice note: FormData prepared, blob size:", lastBlob.size, "type:", lastBlob.type);
+
+            voiceStatus.textContent = "💾 Saving to server...";
+            saveBtn.disabled = true;
 
             try {
                 console.log("Voice note: Sending POST request to /entries/voice");
@@ -1845,7 +1898,8 @@ if (filtered.length === 0) {
                 renderRecordings();
             } catch (err) {
                 console.error("Voice note: Save failed:", err);
-                voiceStatus.textContent = "❌ Failed to save.";
+                voiceStatus.textContent = "❌ Failed to save. Please try again.";
+                saveBtn.disabled = false;
             }
         });
 
@@ -1932,36 +1986,61 @@ if (filtered.length === 0) {
                 voiceEntries.forEach(entry => {
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
-        
+
                     const title = document.createElement("h3");
                     title.classList.add("recording-title");
                     title.textContent = entry.title || "Voice Note";
-        
+
                     const time = document.createElement("p");
                     time.classList.add("recording-time");
-        
-                    const audio = document.createElement("audio");
-                    audio.controls = true;
-                    console.log("Voice note: Setting audio src to:", `/${entry.audio_path}`);
-        
+
                     const delBtn = document.createElement("button");
                     delBtn.classList.add("delete-note");
                     delBtn.textContent = "🗑 Delete";
                     delBtn.onclick = () => deleteRecording(entry.id);
-        
+
                     if (entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now) {
                         time.innerHTML = `🔒 Locked until ${formatDateTimeIST(entry.capsule_open_date)}`;
                         wrapper.classList.add('locked-note');
                     } else {
-                        audio.src = `/${entry.audio_path}`;
                         time.textContent = formatDateTimeIST(entry.created_at);
-                        wrapper.appendChild(audio);
+
+                        // Create audio element with multiple source formats for better compatibility
+                        const audioContainer = document.createElement("div");
+                        audioContainer.classList.add("audio-container");
+
+                        const audio = document.createElement("audio");
+                        audio.controls = true;
+                        audio.preload = "metadata";
+
+                        // Set the primary source
+                        const source = document.createElement("source");
+                        source.src = `/${entry.audio_path}`;
+                        source.type = getAudioMimeType(entry.audio_path);
+                        audio.appendChild(source);
+
+                        // Add error handling
+                        audio.addEventListener('error', (e) => {
+                            console.error("Voice note: Audio playback error:", e);
+                            const errorMsg = document.createElement("p");
+                            errorMsg.textContent = "⚠️ Audio playback not supported in this browser";
+                            errorMsg.style.color = "#f44336";
+                            errorMsg.style.fontSize = "0.9em";
+                            audioContainer.appendChild(errorMsg);
+                        });
+
+                        audio.addEventListener('loadstart', () => {
+                            console.log("Voice note: Audio loading started for:", entry.audio_path);
+                        });
+
+                        audioContainer.appendChild(audio);
+                        wrapper.appendChild(audioContainer);
                     }
-        
+
                     wrapper.appendChild(title);
                     wrapper.appendChild(time);
                     if (!wrapper.classList.contains('locked-note')) {
-                        wrapper.appendChild(audio);
+                        // Audio is already appended above
                     }
                     wrapper.appendChild(delBtn);
                     list.appendChild(wrapper);
@@ -2973,6 +3052,19 @@ if (filtered.length === 0) {
             'calm': '😌', 'anxious': '😰', 'neutral': '😐'
         };
         return emojis[emotion] || '💭';
+    }
+
+    function getAudioMimeType(audioPath) {
+        const extension = audioPath.split('.').pop().toLowerCase();
+        const mimeTypes = {
+            'webm': 'audio/webm',
+            'm4a': 'audio/mp4',
+            'mp4': 'audio/mp4',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            'mp3': 'audio/mpeg'
+        };
+        return mimeTypes[extension] || 'audio/webm';
     }
 
     // --- Content Preview Function ---

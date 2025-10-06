@@ -94,7 +94,18 @@ def save_voice_note():
     upload_folder = current_app.config['UPLOAD_FOLDER']
     print(f"Voice note: upload_folder={upload_folder}")
 
-    filename = secure_filename(f"voice_{user_id}_{datetime.now(IST).timestamp()}_{file.filename}")
+    # Determine file extension from the uploaded file
+    original_filename = file.filename
+    if '.' in original_filename:
+        extension = original_filename.rsplit('.', 1)[1].lower()
+        # Validate extension
+        allowed_extensions = {'webm', 'm4a', 'mp4', 'wav', 'ogg', 'mp3'}
+        if extension not in allowed_extensions:
+            extension = 'webm'  # fallback
+    else:
+        extension = 'webm'  # default
+
+    filename = secure_filename(f"voice_{user_id}_{datetime.now(IST).timestamp()}.{extension}")
     filepath = os.path.join(upload_folder, filename)
     print(f"Voice note: Saving to filepath={filepath}")
 
