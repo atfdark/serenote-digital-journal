@@ -29,6 +29,30 @@ body {
     overflow: hidden;
     /* Prevent all scrolling on the body */
     color: var(--notebook-text);
+    /* Mobile optimizations */
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    touch-action: manipulation;
+}
+
+/* Improve touch targets for mobile */
+button, .clickable, input[type="checkbox"], select, input[type="datetime-local"], input[type="color"] {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Better scrolling on mobile */
+#content {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 768px) {
+    input[type="text"], input[type="datetime-local"], textarea, select {
+        font-size: 16px !important;
+    }
 }
 
 /* Sidebar */
@@ -1184,12 +1208,25 @@ main {
     color: #333;
     z-index: 1001;
     transition: transform 0.2s ease;
+    padding: 8px;
+    border-radius: 6px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .hamburger:focus {
     outline: 2px solid #8b7355;
     outline-offset: 2px;
     border-radius: 4px;
+}
+
+.hamburger:hover {
+    background: rgba(139, 115, 85, 0.1);
+}
+
+.hamburger:active {
+    transform: scale(0.95);
+    background: rgba(139, 115, 85, 0.2);
 }
 
 /* Overlay for mobile sidebar */
@@ -1225,6 +1262,8 @@ body.sidebar-active #content {
         position: fixed;
         height: 100vh;
         transform: translateX(-100%);
+        width: 280px;
+        z-index: 1000;
     }
 
     .sidebar.active {
@@ -1237,22 +1276,40 @@ body.sidebar-active #content {
 
     .topbar {
         justify-content: flex-start;
+        padding: 0 10px;
+        height: 50px;
+    }
+
+    .topbar input {
+        font-size: 0.9rem;
+        padding: 8px 12px;
     }
 
     /* Stack dashboard grid on tablets and smaller */
     .dashboard-grid {
         grid-template-columns: 1fr;
-        gap: 20px;
+        gap: 15px;
+        padding: 10px;
+    }
+
+    .dashboard-col-left, .dashboard-col-right {
+        padding: 15px;
     }
 
     /* Adjust chart container for smaller screens */
     .widget-content {
-        padding: 15px;
+        padding: 10px;
     }
 
     #moodChart {
         max-width: 100%;
         height: auto !important;
+        aspect-ratio: 1;
+    }
+
+    #mood-chart-container {
+        min-height: 280px;
+        padding: 8px;
     }
 
     /* Voice stats responsive */
@@ -1269,26 +1326,40 @@ body.sidebar-active #content {
 
     /* Journal container responsive */
     .journal-container {
-        padding: 25px;
-        margin: 15px;
+        padding: 20px;
+        margin: 10px;
     }
 
     .journal-header {
-        padding: 20px 25px;
-        margin-bottom: 25px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
     }
 
     .journal-header h2 {
-        font-size: 2rem;
+        font-size: 1.8rem;
     }
 
     /* Recording items responsive */
     .recording-item {
-        padding: 18px;
-        margin-bottom: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
     }
 
     .recording-title {
+        font-size: 1.1em;
+    }
+
+    /* Todo list responsive */
+    .todo-content {
+        padding: 15px;
+        margin: 10px;
+    }
+
+    .todo-item {
+        padding: 16px;
+    }
+
+    .todo-title {
         font-size: 1.1em;
     }
 }
@@ -1316,311 +1387,21 @@ body.sidebar-active #content {
     }
 }
 
-/* Additional breakpoint for mobile phones */
+/* Mobile phones */
 @media (max-width: 768px) {
+    /* General mobile adjustments */
     .dashboard-grid {
-        padding: 10px;
+        padding: 5px;
+        gap: 10px;
     }
 
     .dashboard-col-left, .dashboard-col-right {
-        padding: 15px;
+        padding: 10px;
     }
 
     .calendar-wrapper {
         max-width: 100%;
-    }
-
-    .calendar-header h2 {
-        font-size: clamp(1rem, 3vw, 1.4rem);
-    }
-
-    .voice-recorder-section, .recordings-section {
-        padding: 20px;
-        margin: 10px;
-    }
-
-    .voice-stats-card {
-        padding: 16px 20px;
-        gap: 12px;
-    }
-
-    .journal-writing-area {
-        padding: 20px;
-        margin: 10px;
-    }
-
-    /* Centered header for journal page */
-    .centered-header {
-        text-align: center;
-        margin: 18px 0 6px 0;
-    }
-    .centered-header h2 {
-        font-size: 1.9rem;
-        margin: 0;
-        color: #2f2f2f;
-        letter-spacing: 0.4px;
-    }
-
-    /* toolbar with export button aligned right */
-    .journal-toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 6px 0 18px 0;
-    }
-    .journal-toolbar .right-toolbar {
-        display: flex;
-        gap: 10px;
-    }
-    .export-btn {
-        background: linear-gradient(135deg,#8b7355,#764ba2);
-        color: #fff;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 10px;
-        box-shadow: 0 6px 18px rgba(118,75,162,0.12);
-        cursor: pointer;
-    }
-    .export-btn:hover { transform: translateY(-2px); }
-
-    /* Sticky, small journal stats tracker in bottom-right */
-    .sticky-journal-stats {
-        position: fixed;
-        right: 18px;
-        bottom: 18px;
-        width: 160px;
-        max-width: calc(100% - 36px);
-        background: rgba(255,255,255,0.95);
-        border-radius: 12px;
-        padding: 10px 12px;
-        box-shadow: 0 6px 24px rgba(0,0,0,0.12);
-        z-index: 1200;
-        font-size: 0.85rem;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .sticky-journal-stats .stat-item { display:flex; justify-content: space-between; }
-    .sticky-journal-stats .stat-number { font-weight:700; color:#8b7355; }
-
-    /* Make the writing area look more professional */
-    .journal-writing-area {
-        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,248,249,0.96));
-        border: 1px solid rgba(139,115,85,0.08);
-        border-radius: 14px;
-        padding: 22px;
-        margin: 14px 0;
-        box-shadow: 0 10px 30px rgba(39,36,42,0.04);
-    }
-    .journal-writing-area input#journalTitle {
-        width: 100%;
-        padding: 12px 14px;
-        font-size: 1.05rem;
-        border-radius: 10px;
-        border: 1px solid rgba(0,0,0,0.06);
-        margin-bottom: 10px;
-    }
-    .journal-writing-area textarea#journalEntry {
-        width: 100%;
-        min-height: 260px;
-        padding: 18px;
-        font-size: 1.05rem;
-        border-radius: 12px;
-        border: 1px solid rgba(0,0,0,0.06);
-        resize: vertical;
-    }
-    .save-actions { display:flex; gap:10px; margin-top:12px; }
-    .save-btn, .preview-btn { padding: 10px 14px; border-radius:10px; border:none; cursor:pointer; }
-    .save-btn { background: #8b7355; color:#fff; box-shadow: 0 6px 16px rgba(139,115,85,0.12); }
-    .preview-btn { background: transparent; border: 1px solid rgba(0,0,0,0.08); }
-
-    /* New: compact meta row under the title/textarea */
-    .writing-meta-row {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        margin-top: 12px;
-    }
-    .writing-meta-row input#journalTags {
-        flex: 1;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border: 1px solid rgba(139,115,85,0.12);
-    }
-    .capsule-compact {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-    .capsule-compact .capsule-label {
-        font-size: 0.9rem;
-    }
-
-    /* Put selectors below the textarea cleanly */
-    .selectors-below {
-        margin-top: 18px;
-    }
-
-    /* Ensure chart is fully responsive */
-    #moodChart {
-        width: 100% !important;
-        max-width: 100%;
-        height: 250px !important;
-    }
-
-    /* Adjust main content for mobile */
-    main {
-        margin-left: 0;
-        width: 100%;
-    }
-
-    /* Improve topbar on mobile */
-    .topbar {
-        padding: 0 15px;
-        height: 50px;
-    }
-
-    .topbar input {
-        font-size: 0.9rem;
-        padding: 8px 12px;
-    }
-
-    /* Adjust sidebar width on mobile */
-    .sidebar {
-        width: 280px;
-    }
-
-    /* Better spacing for content */
-    #content {
         padding: 15px;
-    }
-
-    /* Responsive selectors */
-    .selectors-container {
-        grid-template-columns: 1fr;
-        gap: 16px;
-        padding: 20px;
-        margin: 15px 0;
-    }
-
-    .mood-selector-container,
-    .theme-selector-container,
-    .font-selector-container,
-    .color-selector-container {
-        min-width: unset;
-        padding: 20px;
-    }
-
-    /* Responsive journal entries */
-    .journal-entry {
-        padding: 20px;
-        margin-bottom: 16px;
-    }
-
-    .entry-header h3 {
-        font-size: 1.2em;
-    }
-
-    .entry-header time {
-        font-size: 0.9em;
-        padding: 3px 10px;
-    }
-
-    .read-more-btn {
-        padding: 8px 16px;
-        font-size: 0.85em;
-    }
-
-    .mood-tag {
-        padding: 6px 12px;
-        font-size: 0.8em;
-    }
-
-    .journal-stats-card {
-        flex-direction: column;
-        gap: 16px;
-        padding: 20px;
-    }
-
-    .stat-item {
-        padding: 8px 0;
-    }
-
-    /* Responsive mood garden */
-    .garden {
-        height: 40vh;
-    }
-
-    .mood-garden-container {
-        margin: 10px;
-        padding: 20px;
-    }
-
-    .mood-garden-container h1 {
-        font-size: 2em;
-    }
-
-    /* Voice controls responsive */
-    .voice-controls {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .voice-controls button {
-        width: 100%;
-        padding: 14px 20px;
-        font-size: 1rem;
-    }
-
-    /* Recording items mobile */
-    .recording-item {
-        padding: 16px;
-    }
-
-    .recording-title {
-        font-size: 1.1em;
-    }
-
-    .delete-note {
-        top: 12px;
-        right: 12px;
-        padding: 6px 10px;
-        font-size: 0.8em;
-    }
-
-    /* Todo list responsive */
-    .todo-content {
-        padding: 20px;
-        margin: 10px;
-    }
-
-    .todo-item {
-        padding: 16px;
-    }
-
-    .todo-title {
-        font-size: 1.1em;
-    }
-
-    .todo-actions {
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .edit-todo-btn, .delete-todo-btn {
-        padding: 6px 10px;
-        font-size: 0.9em;
-    }
-}
-
-/* Very small screens */
-@media (max-width: 480px) {
-    .dashboard-grid {
-        padding: 5px;
-    }
-
-    .dashboard-col-left, .dashboard-col-right {
-        padding: 10px;
     }
 
     .calendar-header {
@@ -1636,66 +1417,252 @@ body.sidebar-active #content {
     }
 
     .date {
-        padding: 15px 0;
+        padding: 12px 0;
     }
 
-    /* Chart on very small screens */
-    #moodChart {
-        height: 200px !important;
+    /* Voice recorder mobile */
+    .voice-recorder-section, .recordings-section {
+        padding: 15px;
+        margin: 5px;
+        border-radius: 12px;
     }
 
-    .widget-content {
-        padding: 10px;
+    .voice-stats-card {
+        padding: 15px;
+        gap: 10px;
+        margin-bottom: 15px;
     }
 
-    .topbar input {
-        font-size: 0.8rem;
-        padding: 6px 10px;
+    .voice-stats-card .stat-item {
+        padding: 8px 12px;
     }
 
-    .sidebar {
-        width: 220px;
+    .voice-controls {
+        flex-direction: column;
+        gap: 8px;
     }
 
     .voice-controls button {
-        font-size: 0.9rem;
-        padding: 10px 15px;
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 0.95rem;
+        border-radius: 8px;
     }
 
-    .journal-writing-area textarea {
-        font-size: 0.9rem;
-    }
-
-    .journal-entry {
+    .recording-item {
         padding: 12px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
+        border-radius: 8px;
     }
 
-    .entry-header h3 {
+    .recording-title {
         font-size: 1em;
     }
 
-    .content-preview,
-    .content-full {
-        font-size: 0.9em;
-        line-height: 1.6;
+    .delete-note {
+        top: 8px;
+        right: 8px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    /* Journal mobile */
+    .journal-container {
+        padding: 15px;
+        margin: 5px;
+        border-radius: 12px;
+    }
+
+    .journal-header {
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+    }
+
+    .journal-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .journal-writing-area {
+        padding: 15px;
+        margin: 8px 0;
+        border-radius: 10px;
+    }
+
+    .journal-writing-area input#journalTitle {
+        padding: 10px 12px;
+        font-size: 1rem;
+        margin-bottom: 8px;
+    }
+
+    .journal-writing-area textarea#journalEntry {
+        min-height: 200px;
+        padding: 12px;
+        font-size: 1rem;
+    }
+
+    .selectors-container {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 15px;
+        margin: 10px 0;
+    }
+
+    .mood-selector-container,
+    .theme-selector-container,
+    .font-selector-container,
+    .color-selector-container {
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+    .journal-entry {
+        padding: 15px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+    }
+
+    .entry-header h3 {
+        font-size: 1.1em;
+    }
+
+    .entry-header time {
+        font-size: 0.85em;
+        padding: 2px 8px;
     }
 
     .read-more-btn {
-        padding: 5px 10px;
-        font-size: 0.75em;
+        padding: 6px 12px;
+        font-size: 0.8rem;
     }
 
     .mood-tag {
-        padding: 3px 8px;
-        font-size: 0.7em;
+        padding: 4px 8px;
+        font-size: 0.75rem;
     }
 
-    /* Responsive modal */
-    .journal-modal-content {
+    .journal-stats-card {
+        flex-direction: column;
+        gap: 12px;
+        padding: 15px;
+    }
+
+    .stat-item {
+        padding: 6px 0;
+    }
+
+    /* Todo list mobile */
+    .todo-content {
+        padding: 15px;
+        margin: 5px;
+        border-radius: 12px;
+    }
+
+    .todo-header h1 {
+        font-size: 2rem;
+    }
+
+    .todo-item {
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .todo-title {
+        font-size: 1em;
+    }
+
+    .todo-actions {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .edit-todo-btn, .delete-todo-btn {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+
+    /* Mood garden mobile */
+    .garden {
+        height: 35vh;
+        border-radius: 10px;
+    }
+
+    .mood-garden-container {
+        margin: 5px;
+        padding: 15px;
+        border-radius: 12px;
+    }
+
+    .mood-garden-container h1 {
+        font-size: 1.8rem;
+    }
+
+    /* Chart mobile */
+    #moodChart {
+        width: 100% !important;
+        max-width: 100%;
+        height: 200px !important;
+    }
+
+    #mood-chart-container {
+        min-height: 240px;
+        padding: 6px;
+    }
+
+    .widget-content {
+        padding: 8px;
+    }
+
+    /* Main content mobile */
+    main {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    #content {
+        padding: 10px;
+    }
+
+    /* Topbar mobile */
+    .topbar {
+        padding: 0 10px;
+        height: 45px;
+    }
+
+    .topbar input {
+        font-size: 0.85rem;
+        padding: 6px 10px;
+        border-radius: 6px;
+    }
+
+    .dark-mode-btn {
+        font-size: 1.2rem;
+        padding: 6px;
+    }
+
+    /* Sidebar mobile */
+    .sidebar {
+        width: 260px;
+        padding: 15px;
+    }
+
+    .sidebar .logo {
+        font-size: 1.3rem;
+        margin-bottom: 20px;
+    }
+
+    .sidebar nav ul li {
+        padding: 10px 12px;
+        margin: 6px 0;
+        font-size: 0.95rem;
+    }
+
+    /* Modals mobile */
+    .modal-content {
         max-width: 95vw;
         max-height: 90vh;
         margin: 10px;
+        border-radius: 12px;
     }
 
     .modal-header {
@@ -1703,83 +1670,377 @@ body.sidebar-active #content {
     }
 
     .modal-header h2 {
-        font-size: 1.2em;
-    }
-
-    .modal-body {
-        padding: 20px;
-        max-height: calc(90vh - 80px);
-        overflow-y: auto;
-    }
-
-    .entry-full-content {
-        font-size: 1em;
-        padding: 15px;
-        min-height: auto;
-    }
-
-    .entry-metadata {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-
-    .close-modal-btn {
-        padding: 8px;
-        font-size: 1.5em;
-    }
-
-    .garden {
-        height: 40vh;
-    }
-
-    /* Very small modal adjustments */
-    .journal-modal-content {
-        max-width: 98vw;
-        max-height: 95vh;
-        margin: 5px;
-    }
-
-    .modal-header {
-        padding: 12px 15px;
-    }
-
-    .modal-header h2 {
-        font-size: 1.1em;
-        line-height: 1.2;
+        font-size: 1.2rem;
     }
 
     .modal-body {
         padding: 15px;
-        max-height: calc(95vh - 60px);
-        overflow-y: auto;
+        max-height: calc(90vh - 70px);
     }
 
     .entry-full-content {
-        font-size: 0.95em;
+        font-size: 0.95rem;
         padding: 12px;
         min-height: auto;
         line-height: 1.6;
     }
 
     .entry-metadata {
-        margin-bottom: 15px;
+        margin-bottom: 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
     }
 
     .entry-metadata .mood-tag {
-        font-size: 0.75em;
-        padding: 4px 8px;
+        font-size: 0.7rem;
+        padding: 3px 6px;
     }
 
     .entry-date {
-        font-size: 0.85em;
+        font-size: 0.8rem;
     }
 
     .close-modal-btn {
         padding: 6px;
-        font-size: 1.2em;
+        font-size: 1.2rem;
         width: 25px;
         height: 25px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    /* General very small screen adjustments */
+    body {
+        font-size: 14px;
+    }
+
+    .dashboard-grid {
+        padding: 3px;
+        gap: 8px;
+    }
+
+    .dashboard-col-left, .dashboard-col-right {
+        padding: 8px;
+    }
+
+    .calendar-wrapper {
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    .calendar-header {
+        padding: 10px;
+    }
+
+    .calendar-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .calendar-grid {
+        font-size: 0.85rem;
+    }
+
+    .date {
+        padding: 10px 0;
+    }
+
+    /* Chart on very small screens */
+    #moodChart {
+        max-width: 250px !important;
+        height: 250px !important;
+    }
+
+    #mood-chart-container {
+        min-height: 280px;
+        padding: 5px;
+    }
+
+    .widget-content {
+        padding: 6px;
+    }
+
+    /* Topbar very small */
+    .topbar {
+        padding: 0 8px;
+        height: 40px;
+    }
+
+    .topbar input {
+        font-size: 0.8rem;
+        padding: 5px 8px;
+        border-radius: 5px;
+    }
+
+    .dark-mode-btn {
+        font-size: 1rem;
+        padding: 4px;
+    }
+
+    .hamburger {
+        font-size: 1.5rem;
+        padding: 6px;
+        margin-right: 8px;
+    }
+
+    /* Sidebar very small */
+    .sidebar {
+        width: 240px;
+        padding: 12px;
+    }
+
+    .sidebar .logo {
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+    }
+
+    .sidebar nav ul li {
+        padding: 8px 10px;
+        margin: 4px 0;
+        font-size: 0.9rem;
+        border-radius: 6px;
+    }
+
+    /* Voice controls very small */
+    .voice-recorder-section, .recordings-section {
+        padding: 12px;
+        margin: 3px;
+    }
+
+    .voice-controls button {
+        font-size: 0.9rem;
+        padding: 10px 12px;
+        border-radius: 6px;
+    }
+
+    .recording-item {
+        padding: 10px;
+        margin-bottom: 6px;
+    }
+
+    .recording-title {
+        font-size: 0.95rem;
+    }
+
+    .delete-note {
+        top: 6px;
+        right: 6px;
+        padding: 3px 6px;
+        font-size: 0.7rem;
+    }
+
+    /* Journal very small */
+    .journal-container {
+        padding: 12px;
+        margin: 3px;
+    }
+
+    .journal-header {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .journal-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .journal-writing-area {
+        padding: 12px;
+        margin: 6px 0;
+    }
+
+    .journal-writing-area input#journalTitle {
+        padding: 8px 10px;
+        font-size: 0.95rem;
+    }
+
+    .journal-writing-area textarea#journalEntry {
+        min-height: 150px;
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+
+    .selectors-container {
+        padding: 12px;
+        margin: 8px 0;
+        gap: 10px;
+    }
+
+    .mood-selector-container,
+    .theme-selector-container,
+    .font-selector-container,
+    .color-selector-container {
+        padding: 12px;
+    }
+
+    .journal-entry {
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+
+    .entry-header h3 {
+        font-size: 1em;
+    }
+
+    .entry-header time {
+        font-size: 0.8rem;
+        padding: 2px 6px;
+    }
+
+    .read-more-btn {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+
+    .mood-tag {
+        padding: 3px 6px;
+        font-size: 0.65rem;
+    }
+
+    .journal-stats-card {
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .stat-item {
+        padding: 4px 0;
+    }
+
+    .stat-number {
+        font-size: 1.8rem;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+    }
+
+    /* Todo list very small */
+    .todo-content {
+        padding: 12px;
+        margin: 3px;
+    }
+
+    .todo-header h1 {
+        font-size: 1.8rem;
+    }
+
+    .todo-item {
+        padding: 10px;
+    }
+
+    .todo-title {
+        font-size: 0.95rem;
+    }
+
+    .edit-todo-btn, .delete-todo-btn {
+        padding: 3px 6px;
+        font-size: 0.75rem;
+    }
+
+    /* Mood garden very small */
+    .garden {
+        height: 30vh;
+    }
+
+    .mood-garden-container {
+        margin: 3px;
+        padding: 12px;
+    }
+
+    .mood-garden-container h1 {
+        font-size: 1.6rem;
+    }
+
+    /* Modals very small */
+    .modal-content {
+        max-width: 98vw;
+        max-height: 95vh;
+        margin: 5px;
+        border-radius: 8px;
+    }
+
+    .modal-header {
+        padding: 10px 15px;
+    }
+
+    .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .modal-body {
+        padding: 12px;
+        max-height: calc(95vh - 50px);
+    }
+
+    .entry-full-content {
+        font-size: 0.9rem;
+        padding: 10px;
+        line-height: 1.5;
+    }
+
+    .entry-metadata {
+        margin-bottom: 10px;
+        gap: 4px;
+    }
+
+    .entry-metadata .mood-tag {
+        font-size: 0.65rem;
+        padding: 2px 5px;
+    }
+
+    .entry-date {
+        font-size: 0.75rem;
+    }
+
+    .close-modal-btn {
+        padding: 4px;
+        font-size: 1rem;
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Content spacing */
+    #content {
+        padding: 8px;
+    }
+
+    /* Voice stats very small */
+    .voice-stats-card {
+        padding: 12px;
+    }
+
+    .voice-stats-card .stat-item {
+        padding: 6px 8px;
+    }
+
+    /* Breathing exercise modal very small */
+    .breathing-circle {
+        width: 150px;
+        height: 150px;
+    }
+
+    .breathing-instruction {
+        font-size: 1.1rem;
+    }
+
+    .breathing-controls {
+        gap: 10px;
+    }
+
+    .exercise-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+
+    /* Notification adjustments */
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        font-size: 0.9rem;
+        padding: 12px 16px;
     }
 }
 
@@ -5037,6 +5298,60 @@ body.dark-mode #todoSearch::placeholder {
 @media (max-width: 980px) {
     .dashboard-grid { grid-template-columns: 1fr; }
     #moodChart { width: 100% !important; max-width: 420px !important; }
+}
+
+/* Adjust chart container for smaller screens */
+@media (max-width: 768px) {
+    .widget-content {
+        padding: 10px;
+    }
+
+    #moodChart {
+        max-width: 100%;
+        height: auto !important;
+        aspect-ratio: 1;
+    }
+
+    #mood-chart-container {
+        min-height: 280px;
+        padding: 8px;
+    }
+}
+
+/* Chart mobile */
+@media (max-width: 480px) {
+    #moodChart {
+        width: 100% !important;
+        max-width: 100%;
+        height: 200px !important;
+    }
+
+    #mood-chart-container {
+        min-height: 240px;
+        padding: 6px;
+    }
+
+    .widget-content {
+        padding: 8px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    /* Chart on very small screens */
+    #moodChart {
+        max-width: 250px !important;
+        height: 250px !important;
+    }
+
+    #mood-chart-container {
+        min-height: 280px;
+        padding: 5px;
+    }
+
+    .widget-content {
+        padding: 6px;
+    }
 }
 
 /* --------------------------------------------------------------------------

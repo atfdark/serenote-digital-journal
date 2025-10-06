@@ -723,21 +723,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = Object.values(moodData);
             if (moodChartInstance) moodChartInstance.destroy();
 
-            // Add animated counters
-            const totalEntries = data.reduce((sum, count) => sum + count, 0);
-            const counterEl = document.createElement('div');
-            counterEl.id = 'moodCounter';
-            counterEl.style.cssText = `
-                text-align: center;
-                margin-bottom: 15px;
-                font-size: 1.2em;
-                font-weight: bold;
-                color: #333;
-            `;
-            chartContainer.insertBefore(counterEl, canvas);
-
-            animateCounter(counterEl, 0, totalEntries, 1500);
-
             moodChartInstance = new Chart(canvas.getContext('2d'), {
                 type: 'doughnut',
                 data: {
@@ -779,7 +764,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 label: function(context) {
                                     const label = context.label || '';
                                     const value = context.parsed;
-                                    const percentage = ((value / totalEntries) * 100).toFixed(1);
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
                                     return `${label}: ${value} (${percentage}%)`;
                                 }
                             }
@@ -817,20 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function animateCounter(element, start, end, duration) {
-        const startTime = performance.now();
-        const animate = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const current = Math.floor(start + (end - start) * progress);
-            // Display only the numeric counter (remove the text label per request)
-            element.textContent = `${current}`;
-            // Keep an accessible label for screen readers
-            element.setAttribute('aria-label', `Total mood entries ${current}`);
-            if (progress < 1) requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
-    }
 
     function showMoodDetail(mood, count) {
         const modal = document.createElement('div');
@@ -3060,6 +3032,9 @@ if (filtered.length === 0) {
 
 
     // --- Default Page ---
-    // This script is in the HTML, which will click the mood garden tab on load.
-    // document.querySelector('[data-page="mood"]').click();
+    // Load the active page on startup
+    const activePage = document.querySelector('.sidebar nav ul li.active').getAttribute('data-page');
+    if (activePage) {
+        loadPageContent(activePage);
+    }
 });
