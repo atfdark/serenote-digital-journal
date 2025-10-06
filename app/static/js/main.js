@@ -1630,7 +1630,26 @@ if (filtered.length === 0) {
 
         const canvas = document.getElementById("waveform");
         const ctx = canvas.getContext("2d");
-        canvas.width = canvas.offsetWidth;
+
+        // Make canvas responsive for mobile
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const containerWidth = container.offsetWidth;
+            canvas.width = containerWidth;
+            canvas.height = 150; // Keep fixed height for mobile
+
+            // For high-DPI displays
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
         let audioContext, analyser, source, dataArray, animationId;
         let mediaRecorder, audioChunks = [], isRecording = false, lastBlob = null;
@@ -1686,6 +1705,12 @@ if (filtered.length === 0) {
 
         recordBtn.addEventListener("click", async () => {
             console.log("Voice note: Record button clicked, isRecording:", isRecording);
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
+            }
+
             if (isRecording) {
                 console.log("Voice note: Stopping recording");
                 mediaRecorder.stop();
@@ -1756,6 +1781,12 @@ if (filtered.length === 0) {
 
         pauseBtn.addEventListener("click", () => {
             if (!mediaRecorder) return;
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(30);
+            }
+
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.pause();
                 voiceStatus.textContent = "⏸ Paused";
@@ -1772,6 +1803,11 @@ if (filtered.length === 0) {
         saveBtn.addEventListener("click", async () => {
             console.log("Voice note: Save button clicked, blob exists:", !!lastBlob);
             if (!lastBlob) return;
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(40);
+            }
             const formData = new FormData();
             formData.append('audio', lastBlob, 'voice.webm');
             formData.append('user_id', userId);
@@ -1814,6 +1850,11 @@ if (filtered.length === 0) {
         });
 
         deleteBtn.addEventListener("click", () => {
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(30);
+            }
+
             resetVoiceRecorder();
             voiceStatus.textContent = "🗑️ Recording deleted.";
         });
@@ -1825,6 +1866,12 @@ if (filtered.length === 0) {
 
         timeCapsuleBtn.addEventListener("click", () => {
             if (!lastBlob) return alert("You must record something first!");
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
+            }
+
             modal.classList.add("show");
         });
 
@@ -2945,6 +2992,72 @@ if (filtered.length === 0) {
         return previewLines.join('\n') + '\n...';
     }
 
+    // --- Mobile Touch Enhancements for Journal ---
+    function enhanceMobileJournalExperience() {
+        // Add haptic feedback to journal buttons
+        const journalButtons = document.querySelectorAll('.save-btn, .preview-btn, .options-toggle');
+        journalButtons.forEach(button => {
+            button.addEventListener('touchstart', (e) => {
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(20);
+                }
+            });
+        });
+
+        // Better mobile keyboard handling
+        const journalTextarea = document.getElementById('journalEntry');
+        const journalTitle = document.getElementById('journalTitle');
+
+        if (journalTextarea) {
+            journalTextarea.addEventListener('focus', () => {
+                // Scroll to keep textarea visible when keyboard appears
+                setTimeout(() => {
+                    journalTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            });
+        }
+
+        if (journalTitle) {
+            journalTitle.addEventListener('focus', () => {
+                setTimeout(() => {
+                    journalTitle.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            });
+        }
+
+        // Enhanced options panel touch interactions
+        const optionsToggle = document.querySelector('.options-toggle');
+        const optionsPanel = document.querySelector('.options-panel');
+
+        if (optionsToggle && optionsPanel) {
+            // Close panel when tapping outside
+            document.addEventListener('touchstart', (e) => {
+                if (!optionsPanel.contains(e.target) && !optionsToggle.contains(e.target)) {
+                    optionsPanel.style.display = 'none';
+                }
+            });
+
+            // Prevent panel from closing when interacting with its contents
+            optionsPanel.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        // Better mobile scrolling for options panel
+        if (optionsPanel) {
+            optionsPanel.addEventListener('touchmove', (e) => {
+                // Allow native scrolling
+            }, { passive: true });
+        }
+    }
+
+    // Initialize mobile enhancements when journal page loads
+    function initializeJournalMobileEnhancements() {
+        if (document.querySelector('.journal-writing-area')) {
+            enhanceMobileJournalExperience();
+        }
+    }
+
     // --- Journal Entry Modal ---
     function showJournalEntryModal(title, content, mood, theme, createdDate) {
         const modal = document.createElement('div');
@@ -3087,4 +3200,7 @@ if (filtered.length === 0) {
     if (activePage) {
         loadPageContent(activePage);
     }
+
+    // Initialize mobile enhancements for journal when page loads
+    initializeJournalMobileEnhancements();
 });
