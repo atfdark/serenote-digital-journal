@@ -2,6 +2,10 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Bool
 from sqlalchemy.orm import relationship
 from .db import Base
 import datetime
+from datetime import timezone, timedelta
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 class User(Base):
     __tablename__ = 'users'
@@ -23,7 +27,7 @@ class Entry(Base):
     audio_path = Column(String(300), nullable=True)
     is_capsule = Column(Boolean, default=False)
     capsule_open_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(IST))
 
 
     user = relationship("User", back_populates="entries")
@@ -33,7 +37,7 @@ class Garden(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
-    last_updated = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    last_updated = Column(DateTime, default=lambda: datetime.datetime.now(IST))
     overall_vibe = Column(String(100))
 
     # Garden progression data
@@ -67,8 +71,8 @@ class GardenFlower(Base):
     position_x = Column(Float, default=0.0)  # percentage position in garden
     position_y = Column(Float, default=0.0)
     health = Column(Float, default=1.0)  # 0.0 to 1.0
-    planted_date = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    last_growth = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    planted_date = Column(DateTime, default=lambda: datetime.datetime.now(IST))
+    last_growth = Column(DateTime, default=lambda: datetime.datetime.now(IST))
     bloom_count = Column(Integer, default=0)  # how many times it has bloomed
 
     garden = relationship("Garden", back_populates="flowers_data")
@@ -84,7 +88,7 @@ class Todo(Base):
     priority = Column(String(20), default="medium")  # low, medium, high
     category = Column(String(50), default="general")  # work, personal, health, etc.
     due_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc), onupdate=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(IST))
+    updated_at = Column(DateTime, default=lambda: datetime.datetime.now(IST), onupdate=lambda: datetime.datetime.now(IST))
 
     user = relationship("User")

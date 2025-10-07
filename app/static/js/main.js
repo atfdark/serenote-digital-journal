@@ -723,21 +723,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = Object.values(moodData);
             if (moodChartInstance) moodChartInstance.destroy();
 
-            // Add animated counters
-            const totalEntries = data.reduce((sum, count) => sum + count, 0);
-            const counterEl = document.createElement('div');
-            counterEl.id = 'moodCounter';
-            counterEl.style.cssText = `
-                text-align: center;
-                margin-bottom: 15px;
-                font-size: 1.2em;
-                font-weight: bold;
-                color: #333;
-            `;
-            chartContainer.insertBefore(counterEl, canvas);
-
-            animateCounter(counterEl, 0, totalEntries, 1500);
-
             moodChartInstance = new Chart(canvas.getContext('2d'), {
                 type: 'doughnut',
                 data: {
@@ -779,7 +764,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 label: function(context) {
                                     const label = context.label || '';
                                     const value = context.parsed;
-                                    const percentage = ((value / totalEntries) * 100).toFixed(1);
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
                                     return `${label}: ${value} (${percentage}%)`;
                                 }
                             }
@@ -817,20 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function animateCounter(element, start, end, duration) {
-        const startTime = performance.now();
-        const animate = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const current = Math.floor(start + (end - start) * progress);
-            // Display only the numeric counter (remove the text label per request)
-            element.textContent = `${current}`;
-            // Keep an accessible label for screen readers
-            element.setAttribute('aria-label', `Total mood entries ${current}`);
-            if (progress < 1) requestAnimationFrame(animate);
-        };
-        requestAnimationFrame(animate);
-    }
 
     function showMoodDetail(mood, count) {
         const modal = document.createElement('div');
@@ -1436,8 +1408,8 @@ if (filtered.length === 0) {
 
         const entryDateStr = toIST(new Date(entry.created_at)).toLocaleDateString("en-CA");
         const isToday = entryDateStr === todayStr;
-        const now = new Date();
-        const isLocked = entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now;
+        const now = toIST(new Date());
+        const isLocked = entry.is_capsule && entry.capsule_open_date && toIST(new Date(entry.capsule_open_date)) > now;
 
         let actionsHTML = "";
         if (!isLocked) {
@@ -1545,6 +1517,23 @@ if (filtered.length === 0) {
 
     function loadVoiceNotes() {
         if (voiceInterval) clearInterval(voiceInterval);
+
+        // Check browser support
+        const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
+        const hasGetUserMedia = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+
+        console.log("Voice note: Browser support check - MediaRecorder:", hasMediaRecorder, "getUserMedia:", hasGetUserMedia);
+
+        if (!hasMediaRecorder || !hasGetUserMedia) {
+            content.innerHTML = `
+            <div class="voice-header">
+                <h1>🎙 Voice Notes</h1>
+                <p class="voice-msg">❌ Your browser doesn't support voice recording.</p>
+                <p>Please use a modern browser like Chrome, Firefox, or Edge for voice notes.</p>
+            </div>`;
+            return;
+        }
+
         content.innerHTML = `
       <div class="voice-header">
         <h1>🎙 Voice Notes</h1>
@@ -1641,7 +1630,26 @@ if (filtered.length === 0) {
 
         const canvas = document.getElementById("waveform");
         const ctx = canvas.getContext("2d");
-        canvas.width = canvas.offsetWidth;
+
+        // Make canvas responsive for mobile
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const containerWidth = container.offsetWidth;
+            canvas.width = containerWidth;
+            canvas.height = 150; // Keep fixed height for mobile
+
+            // For high-DPI displays
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
         let audioContext, analyser, source, dataArray, animationId;
         let mediaRecorder, audioChunks = [], isRecording = false, lastBlob = null;
@@ -1696,23 +1704,61 @@ if (filtered.length === 0) {
         }
 
         recordBtn.addEventListener("click", async () => {
+            console.log("Voice note: Record button clicked, isRecording:", isRecording);
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
+            }
+
             if (isRecording) {
+                console.log("Voice note: Stopping recording");
                 mediaRecorder.stop();
             } else {
                 try {
+                    console.log("Voice note: Requesting microphone access");
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    console.log("Voice note: Microphone access granted");
+
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log("Voice note: AudioContext created");
+
                     analyser = audioContext.createAnalyser();
                     source = audioContext.createMediaStreamSource(stream);
                     source.connect(analyser);
                     analyser.fftSize = 2048;
                     dataArray = new Uint8Array(analyser.fftSize);
-                    
-                    mediaRecorder = new MediaRecorder(stream);
+
+                    // Try different MIME types for better compatibility
+                    const mimeTypes = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/mp4',
+                        'audio/wav',
+                        'audio/ogg;codecs=opus'
+                    ];
+
+                    let selectedMimeType = 'audio/webm';
+                    for (const mimeType of mimeTypes) {
+                        if (MediaRecorder.isTypeSupported(mimeType)) {
+                            selectedMimeType = mimeType;
+                            break;
+                        }
+                    }
+
+                    console.log("Voice note: Using MIME type:", selectedMimeType);
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
                     audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    
+
+                    mediaRecorder.ondataavailable = e => {
+                        console.log("Voice note: Audio data available, size:", e.data.size);
+                        if (e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
+                    };
+
                     mediaRecorder.onstart = () => {
+                        console.log("Voice note: Recording started");
                         isRecording = true;
                         voiceStatus.textContent = "🔴 Recording...";
                         recordBtn.textContent = "⏹️ Stop";
@@ -1723,8 +1769,19 @@ if (filtered.length === 0) {
                     };
 
                     mediaRecorder.onstop = () => {
+                        console.log("Voice note: Recording stopped, chunks:", audioChunks.length);
                         isRecording = false;
-                        lastBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+                        if (audioChunks.length === 0) {
+                            voiceStatus.textContent = "❌ No audio data recorded. Please try again.";
+                            recordBtn.textContent = "🔴 Record";
+                            pauseBtn.disabled = true;
+                            return;
+                        }
+
+                        lastBlob = new Blob(audioChunks, { type: selectedMimeType });
+                        console.log("Voice note: Blob created, size:", lastBlob.size, "type:", selectedMimeType);
+
                         voiceStatus.textContent = "🛑 Recording stopped. Ready to save.";
                         recordBtn.textContent = "🔴 Record";
                         [saveBtn, deleteBtn, timeCapsuleBtn].forEach(btn => btn.disabled = false);
@@ -1733,16 +1790,39 @@ if (filtered.length === 0) {
                         cancelAnimationFrame(animationId);
                     };
 
-                    mediaRecorder.start();
+                    mediaRecorder.onerror = (event) => {
+                        console.error("Voice note: MediaRecorder error:", event.error);
+                        voiceStatus.textContent = "❌ Recording error. Please try again.";
+                        resetVoiceRecorder();
+                    };
+
+                    console.log("Voice note: Starting MediaRecorder");
+                    mediaRecorder.start(1000); // Collect data every second for better streaming
 
                 } catch (err) {
-                    alert("Microphone access denied!");
+                    console.error("Voice note: Error accessing microphone:", err);
+                    let errorMessage = "Microphone access denied or failed!";
+                    if (err.name === 'NotAllowedError') {
+                        errorMessage = "Microphone access denied. Please allow microphone access and try again.";
+                    } else if (err.name === 'NotFoundError') {
+                        errorMessage = "No microphone found. Please check your microphone connection.";
+                    } else if (err.name === 'NotReadableError') {
+                        errorMessage = "Microphone is already in use by another application.";
+                    }
+                    voiceStatus.textContent = "❌ " + errorMessage;
+                    alert(errorMessage);
                 }
             }
         });
 
         pauseBtn.addEventListener("click", () => {
             if (!mediaRecorder) return;
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(30);
+            }
+
             if (mediaRecorder.state === "recording") {
                 mediaRecorder.pause();
                 voiceStatus.textContent = "⏸ Paused";
@@ -1757,15 +1837,41 @@ if (filtered.length === 0) {
         });
 
         saveBtn.addEventListener("click", async () => {
-            if (!lastBlob) return;
+            console.log("Voice note: Save button clicked, blob exists:", !!lastBlob);
+            if (!lastBlob) {
+                voiceStatus.textContent = "❌ No recording to save.";
+                return;
+            }
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(40);
+            }
+
+            // Determine file extension based on MIME type
+            let fileExtension = 'webm';
+            if (lastBlob.type.includes('mp4')) {
+                fileExtension = 'm4a';
+            } else if (lastBlob.type.includes('wav')) {
+                fileExtension = 'wav';
+            } else if (lastBlob.type.includes('ogg')) {
+                fileExtension = 'ogg';
+            }
+
             const formData = new FormData();
-            formData.append('audio', lastBlob, 'voice.webm');
+            formData.append('audio', lastBlob, `voice.${fileExtension}`);
             formData.append('user_id', userId);
             formData.append('title', 'Voice Note');
             formData.append('mood', 'Neutral'); // or prompt for mood
+            console.log("Voice note: FormData prepared, blob size:", lastBlob.size, "type:", lastBlob.type);
+
+            voiceStatus.textContent = "💾 Saving to server...";
+            saveBtn.disabled = true;
 
             try {
+                console.log("Voice note: Sending POST request to /entries/voice");
                 await api.post('/entries/voice', formData, true);
+                console.log("Voice note: Save request successful");
 
                 // Update the mood garden with the voice note
                 try {
@@ -1791,11 +1897,18 @@ if (filtered.length === 0) {
                 loadVoiceStats();
                 renderRecordings();
             } catch (err) {
-                voiceStatus.textContent = "❌ Failed to save.";
+                console.error("Voice note: Save failed:", err);
+                voiceStatus.textContent = "❌ Failed to save. Please try again.";
+                saveBtn.disabled = false;
             }
         });
 
         deleteBtn.addEventListener("click", () => {
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(30);
+            }
+
             resetVoiceRecorder();
             voiceStatus.textContent = "🗑️ Recording deleted.";
         });
@@ -1807,6 +1920,12 @@ if (filtered.length === 0) {
 
         timeCapsuleBtn.addEventListener("click", () => {
             if (!lastBlob) return alert("You must record something first!");
+
+            // Add haptic feedback for mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
+            }
+
             modal.classList.add("show");
         });
 
@@ -1849,9 +1968,12 @@ if (filtered.length === 0) {
             if (!list) return;
             list.innerHTML = "";
             try {
+                console.log("Voice note: Fetching entries for user", userId);
                 const entries = await api.get(`/entries/user/${userId}`);
+                console.log("Voice note: Total entries received:", entries.length);
                 const voiceEntries = entries.filter(e => e.type === 'voice');
-                const now = new Date();
+                console.log("Voice note: Voice entries found:", voiceEntries.length);
+                const now = toIST(new Date());
 
                 if (voiceEntries.length === 0) {
                     list.innerHTML = "<p>No recordings yet.</p>";
@@ -1864,35 +1986,61 @@ if (filtered.length === 0) {
                 voiceEntries.forEach(entry => {
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
-        
+
                     const title = document.createElement("h3");
                     title.classList.add("recording-title");
                     title.textContent = entry.title || "Voice Note";
-        
+
                     const time = document.createElement("p");
                     time.classList.add("recording-time");
-        
-                    const audio = document.createElement("audio");
-                    audio.controls = true;
-        
+
                     const delBtn = document.createElement("button");
                     delBtn.classList.add("delete-note");
                     delBtn.textContent = "🗑 Delete";
                     delBtn.onclick = () => deleteRecording(entry.id);
-        
+
                     if (entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now) {
                         time.innerHTML = `🔒 Locked until ${formatDateTimeIST(entry.capsule_open_date)}`;
                         wrapper.classList.add('locked-note');
                     } else {
-                        audio.src = `/${entry.audio_path}`;
                         time.textContent = formatDateTimeIST(entry.created_at);
-                        wrapper.appendChild(audio);
+
+                        // Create audio element with multiple source formats for better compatibility
+                        const audioContainer = document.createElement("div");
+                        audioContainer.classList.add("audio-container");
+
+                        const audio = document.createElement("audio");
+                        audio.controls = true;
+                        audio.preload = "metadata";
+
+                        // Set the primary source
+                        const source = document.createElement("source");
+                        source.src = `/${entry.audio_path}`;
+                        source.type = getAudioMimeType(entry.audio_path);
+                        audio.appendChild(source);
+
+                        // Add error handling
+                        audio.addEventListener('error', (e) => {
+                            console.error("Voice note: Audio playback error:", e);
+                            const errorMsg = document.createElement("p");
+                            errorMsg.textContent = "⚠️ Audio playback not supported in this browser";
+                            errorMsg.style.color = "#f44336";
+                            errorMsg.style.fontSize = "0.9em";
+                            audioContainer.appendChild(errorMsg);
+                        });
+
+                        audio.addEventListener('loadstart', () => {
+                            console.log("Voice note: Audio loading started for:", entry.audio_path);
+                        });
+
+                        audioContainer.appendChild(audio);
+                        wrapper.appendChild(audioContainer);
                     }
-        
+
                     wrapper.appendChild(title);
                     wrapper.appendChild(time);
                     if (!wrapper.classList.contains('locked-note')) {
-                        wrapper.appendChild(audio);
+                        // Audio is already appended above
                     }
                     wrapper.appendChild(delBtn);
                     list.appendChild(wrapper);
@@ -2075,7 +2223,7 @@ if (filtered.length === 0) {
         });
 
         todoListEl.innerHTML = filteredTodos.map(todo => {
-            const isOverdue = todo.due_date && new Date(todo.due_date) < new Date() && !todo.completed;
+            const isOverdue = todo.due_date && toIST(new Date(todo.due_date)) < toIST(new Date()) && !todo.completed;
             const priorityClass = `priority-${todo.priority}`;
             const categoryEmoji = getCategoryEmoji(todo.category);
 
@@ -2279,8 +2427,8 @@ if (filtered.length === 0) {
     }
 
     function formatDueDate(dueDate) {
-        const date = new Date(dueDate);
-        const now = new Date();
+        const date = toIST(new Date(dueDate));
+        const now = toIST(new Date());
         const diffTime = date - now;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -2344,7 +2492,7 @@ if (filtered.length === 0) {
                             </div>
                             <div class="form-group">
                                 <label for="editDueDate">Due Date</label>
-                                <input type="datetime-local" id="editDueDate" value="${todo.due_date ? new Date(todo.due_date).toISOString().slice(0, 16) : ''}" />
+                                <input type="datetime-local" id="editDueDate" value="${todo.due_date ? toIST(new Date(todo.due_date)).toISOString().slice(0, 16) : ''}" />
                             </div>
                             <div class="modal-buttons">
                                 <button type="button" id="cancelEditBtn">Cancel</button>
@@ -2622,8 +2770,8 @@ if (filtered.length === 0) {
                 dateEl.classList.add("date");
                 dateEl.textContent = d;
                 const date = new Date(year, month, d);
-                dateEl.dataset.date = date.toLocaleDateString("en-CA");
-                let today = new Date();
+                dateEl.dataset.date = toIST(date).toLocaleDateString("en-CA");
+                let today = toIST(new Date());
                 if (d === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
                     dateEl.classList.add("today");
                 }
@@ -2906,6 +3054,19 @@ if (filtered.length === 0) {
         return emojis[emotion] || '💭';
     }
 
+    function getAudioMimeType(audioPath) {
+        const extension = audioPath.split('.').pop().toLowerCase();
+        const mimeTypes = {
+            'webm': 'audio/webm',
+            'm4a': 'audio/mp4',
+            'mp4': 'audio/mp4',
+            'wav': 'audio/wav',
+            'ogg': 'audio/ogg',
+            'mp3': 'audio/mpeg'
+        };
+        return mimeTypes[extension] || 'audio/webm';
+    }
+
     // --- Content Preview Function ---
     function getContentPreview(content) {
         if (!content) return '';
@@ -2921,6 +3082,72 @@ if (filtered.length === 0) {
 
         // Join preview lines and add ellipsis
         return previewLines.join('\n') + '\n...';
+    }
+
+    // --- Mobile Touch Enhancements for Journal ---
+    function enhanceMobileJournalExperience() {
+        // Add haptic feedback to journal buttons
+        const journalButtons = document.querySelectorAll('.save-btn, .preview-btn, .options-toggle');
+        journalButtons.forEach(button => {
+            button.addEventListener('touchstart', (e) => {
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(20);
+                }
+            });
+        });
+
+        // Better mobile keyboard handling
+        const journalTextarea = document.getElementById('journalEntry');
+        const journalTitle = document.getElementById('journalTitle');
+
+        if (journalTextarea) {
+            journalTextarea.addEventListener('focus', () => {
+                // Scroll to keep textarea visible when keyboard appears
+                setTimeout(() => {
+                    journalTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            });
+        }
+
+        if (journalTitle) {
+            journalTitle.addEventListener('focus', () => {
+                setTimeout(() => {
+                    journalTitle.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            });
+        }
+
+        // Enhanced options panel touch interactions
+        const optionsToggle = document.querySelector('.options-toggle');
+        const optionsPanel = document.querySelector('.options-panel');
+
+        if (optionsToggle && optionsPanel) {
+            // Close panel when tapping outside
+            document.addEventListener('touchstart', (e) => {
+                if (!optionsPanel.contains(e.target) && !optionsToggle.contains(e.target)) {
+                    optionsPanel.style.display = 'none';
+                }
+            });
+
+            // Prevent panel from closing when interacting with its contents
+            optionsPanel.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        // Better mobile scrolling for options panel
+        if (optionsPanel) {
+            optionsPanel.addEventListener('touchmove', (e) => {
+                // Allow native scrolling
+            }, { passive: true });
+        }
+    }
+
+    // Initialize mobile enhancements when journal page loads
+    function initializeJournalMobileEnhancements() {
+        if (document.querySelector('.journal-writing-area')) {
+            enhanceMobileJournalExperience();
+        }
     }
 
     // --- Journal Entry Modal ---
@@ -3060,6 +3287,12 @@ if (filtered.length === 0) {
 
 
     // --- Default Page ---
-    // This script is in the HTML, which will click the mood garden tab on load.
-    // document.querySelector('[data-page="mood"]').click();
+    // Load the active page on startup
+    const activePage = document.querySelector('.sidebar nav ul li.active').getAttribute('data-page');
+    if (activePage) {
+        loadPageContent(activePage);
+    }
+
+    // Initialize mobile enhancements for journal when page loads
+    initializeJournalMobileEnhancements();
 });

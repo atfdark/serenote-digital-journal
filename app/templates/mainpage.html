@@ -21,8 +21,8 @@
     <div class="logo"><img src="{{ url_for('static', filename='assets/logo.png') }}" alt="Serenote Logo"></div>
     <nav>
       <ul>
-        <li class="active" data-page="mood">🌱 Mood Garden</li>
-        <li data-page="dashboard">📅 Dashboard</li>
+        <li data-page="mood">🌱 Mood Garden</li>
+        <li class="active" data-page="dashboard">📅 Dashboard</li>
         <li data-page="journal">📖 Journal</li>
         <li data-page="voice">🎙 Voice Note</li>
         <li data-page="todo">✅ Todo List</li>
@@ -68,9 +68,5 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="{{ url_for('static', filename='js/mood-garden.js') }}"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-  <script>
-    // Load the mood garden by default
-    document.querySelector('[data-page="mood"]').click();
-  </script>
 </body>
 </html>

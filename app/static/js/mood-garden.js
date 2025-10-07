@@ -1,14 +1,21 @@
 class MoodGarden {
-   constructor(container, userId) {
-       this.container = container;
-       this.userId = userId;
-       this.gardenData = null;
-       this.isWatering = false;
-       this.audioContext = null;
-       this.soundEnabled = localStorage.getItem('gardenSounds') !== 'false';
+    constructor(container, userId) {
+        this.container = container;
+        this.userId = userId;
+        this.gardenData = null;
+        this.isWatering = false;
+        this.audioContext = null;
+        this.soundEnabled = localStorage.getItem('gardenSounds') !== 'false';
 
-       this.init();
-   }
+        this.init();
+    }
+
+    // Helper function to convert to IST (UTC+5:30)
+    toIST(date) {
+        const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+        const ist = new Date(utc + (5.5 * 3600000)); // 5.5 hours in milliseconds
+        return ist;
+    }
 
    async init() {
        await this.loadGarden();
@@ -98,9 +105,9 @@ class MoodGarden {
        can.title = 'Water your garden (click to water)';
 
        // Check if already watered today
-       const today = new Date().toDateString();
+       const today = this.toIST(new Date()).toDateString();
        const lastWatered = this.gardenData.last_watered ?
-           new Date(this.gardenData.last_watered).toDateString() : null;
+           this.toIST(new Date(this.gardenData.last_watered)).toDateString() : null;
 
        if (lastWatered === today) {
            can.classList.add('disabled');
@@ -645,7 +652,7 @@ class MoodGarden {
    startSeasonalEffects() {
        // Update seasonal effects every hour
        setInterval(() => {
-           const now = new Date();
+           const now = this.toIST(new Date());
            const hour = now.getHours();
            const season = this.gardenData.current_season;
 

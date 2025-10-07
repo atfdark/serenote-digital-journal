@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.database.db import db_session
 from app.database.models import Todo
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 todo_routes = Blueprint("todo", __name__)
 
@@ -115,7 +118,7 @@ def get_todo_stats(user_id):
     low_priority = len([t for t in todos if t.priority == "low" and not t.completed])
 
     # Overdue todos
-    now = datetime.now()
+    now = datetime.now(IST)
     overdue = len([t for t in todos if t.due_date and t.due_date < now and not t.completed])
 
     return jsonify({

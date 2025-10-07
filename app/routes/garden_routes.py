@@ -2,8 +2,12 @@ from flask import Blueprint, request, jsonify
 from app.database.db import db_session
 from app.database.models import Garden, GardenFlower
 import datetime
+from datetime import timezone, timedelta
 import json
 import random
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 garden_routes = Blueprint("garden",__name__)
 
@@ -54,7 +58,7 @@ def log_mood_and_update_garden():
 
     # Update overall vibe
     garden.overall_vibe = mood
-    garden.last_updated = datetime.datetime.now(datetime.timezone.utc)
+    garden.last_updated = datetime.datetime.now(IST)
     garden.growth_level += 1
 
     # Find or create flower for this mood
@@ -77,7 +81,7 @@ def log_mood_and_update_garden():
         # Update existing flower growth
         growth_increase = intensity * 0.1  # Intensity affects growth rate
         flower.growth_stage = min(1.0, flower.growth_stage + growth_increase)
-        flower.last_growth = datetime.datetime.now(datetime.timezone.utc)
+        flower.last_growth = datetime.datetime.now(IST)
         if flower.growth_stage >= 1.0:
             flower.bloom_count += 1
 
@@ -135,7 +139,7 @@ def get_garden(user_id):
             })
 
         # Determine current season based on month
-        current_month = datetime.datetime.now().month
+        current_month = datetime.datetime.now(IST).month
         if current_month in [12, 1, 2]:
             season = "winter"
         elif current_month in [3, 4, 5]:
@@ -177,7 +181,7 @@ def water_garden(user_id):
     if not garden:
         return jsonify({"message": "Garden not found"}), 404
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(IST)
 
     # Check if already watered today
     if garden.last_watered and garden.last_watered.date() == now.date():
