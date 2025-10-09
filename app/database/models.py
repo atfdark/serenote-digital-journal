@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Float, LargeBinary
 from sqlalchemy.orm import relationship
 from .db import Base
 import datetime
@@ -25,6 +25,7 @@ class Entry(Base):
     type = Column(String(50))   # text or voice
     mood = Column(String(50))
     audio_path = Column(String(300), nullable=True)
+    audio_data = Column(LargeBinary, nullable=True)
     is_capsule = Column(Boolean, default=False)
     capsule_open_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(IST))
