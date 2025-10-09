@@ -1,12 +1,11 @@
 # file: app/routes/entry_routes.py (Corrected)
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from app.database.db import db_session
 from app.database.models import Entry
-from werkzeug.utils import secure_filename
 from datetime import datetime, timezone, timedelta
-import os
 import openai
+import base64
 
 # IST timezone (UTC+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -54,12 +53,17 @@ def add_text_entry():
 @entry_routes.route("/user/<int:user_id>", methods=["GET"])
 def get_entries(user_id):
     entries = db_session.query(Entry).filter_by(user_id=user_id).order_by(Entry.created_at.desc()).all()
-    result = [{
-        "id": entry.id, "title": entry.title, "content": entry.content,
-        "mood": entry.mood, "type": entry.type, "audio_path": entry.audio_path,
-        "is_capsule": entry.is_capsule, "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
-        "created_at": entry.created_at.isoformat()
-    } for entry in entries]
+    result = []
+    for entry in entries:
+        entry_data = {
+            "id": entry.id, "title": entry.title, "content": entry.content,
+            "mood": entry.mood, "type": entry.type, "audio_path": entry.audio_path,
+            "is_capsule": entry.is_capsule, "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
+            "created_at": entry.created_at.isoformat()
+        }
+        if entry.audio_data:
+            entry_data["audio_data"] = base64.b64encode(entry.audio_data).decode('utf-8')
+        result.append(entry_data)
     return jsonify(result)
 
 @entry_routes.route("/delete/<int:entry_id>", methods=["DELETE"])
@@ -91,33 +95,13 @@ def save_voice_note():
         print("Voice note: Missing user_id or filename")
         return jsonify({"message": "Missing required data"}), 400
 
-    upload_folder = current_app.config['UPLOAD_FOLDER']
-    print(f"Voice note: upload_folder={upload_folder}")
-
-    # Determine file extension from the uploaded file
-    original_filename = file.filename
-    if '.' in original_filename:
-        extension = original_filename.rsplit('.', 1)[1].lower()
-        # Validate extension
-        allowed_extensions = {'webm', 'm4a', 'mp4', 'wav', 'ogg', 'mp3'}
-        if extension not in allowed_extensions:
-            extension = 'webm'  # fallback
-    else:
-        extension = 'webm'  # default
-
-    filename = secure_filename(f"voice_{user_id}_{datetime.now(IST).timestamp()}.{extension}")
-    filepath = os.path.join(upload_folder, filename)
-    print(f"Voice note: Saving to filepath={filepath}")
-
+    # Read the audio file data
     try:
-        file.save(filepath)
-        print("Voice note: File saved successfully")
+        audio_data = file.read()
+        print(f"Voice note: Read audio data, size={len(audio_data)} bytes")
     except Exception as e:
-        print(f"Voice note: Error saving file: {e}")
-        return jsonify({"message": "Failed to save audio file"}), 500
-
-    web_path = os.path.join('static', 'uploads', filename).replace("\\", "/")
-    print(f"Voice note: web_path={web_path}")
+        print(f"Voice note: Error reading audio file: {e}")
+        return jsonify({"message": "Failed to read audio file"}), 500
 
     capsule_date = None
     if is_capsule and capsule_open_date:
@@ -132,7 +116,7 @@ def save_voice_note():
             title=request.form.get("title"),
             mood=request.form.get("mood"),
             type="voice",
-            audio_path=web_path,
+            audio_data=audio_data,
             is_capsule=is_capsule,
             capsule_open_date=capsule_date
         )
