@@ -2005,7 +2005,7 @@ if (filtered.length === 0) {
                     } else {
                         time.textContent = formatDateTimeIST(entry.created_at);
 
-                        // Create audio element with multiple source formats for better compatibility
+                        // Create audio element using base64 data
                         const audioContainer = document.createElement("div");
                         audioContainer.classList.add("audio-container");
 
@@ -2013,11 +2013,10 @@ if (filtered.length === 0) {
                         audio.controls = true;
                         audio.preload = "metadata";
 
-                        // Set the primary source
-                        const source = document.createElement("source");
-                        source.src = `/${entry.audio_path}`;
-                        source.type = getAudioMimeType(entry.audio_path);
-                        audio.appendChild(source);
+                        // Set the source using base64 data
+                        if (entry.audio_data) {
+                            audio.src = `data:audio/webm;base64,${entry.audio_data}`;
+                        }
 
                         // Add error handling
                         audio.addEventListener('error', (e) => {

@@ -1,11 +1,9 @@
 # file: app/routes/entry_routes.py (Corrected)
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from app.database.db import db_session
 from app.database.models import Entry
-from werkzeug.utils import secure_filename
 from datetime import datetime, timezone, timedelta
-import os
 import openai
 import base64
 
