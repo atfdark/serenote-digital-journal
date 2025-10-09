@@ -48,26 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(body)
             });
 
-            // Responsive tweak: adjust legend position for small widths (placed after chart creation)
-            function adjustMoodChartLayout() {
-                if (!moodChartInstance) return;
-                const w = chartContainer.clientWidth;
-                if (w < 420) {
-                    moodChartInstance.options.plugins.legend.position = 'bottom';
-                    moodChartInstance.options.aspectRatio = 1;
-                } else {
-                    moodChartInstance.options.plugins.legend.position = 'right';
-                    moodChartInstance.options.aspectRatio = 1;
-                }
-                moodChartInstance.update();
-            }
-
-            // initial adjust and on resize
-            adjustMoodChartLayout();
-            window.addEventListener('resize', () => {
-                adjustMoodChartLayout();
-                if (moodChartInstance) moodChartInstance.resize();
-            });
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({ message: "Failed to update" }));
                 throw new Error(errorData.message);
@@ -791,11 +771,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Handle window resize for responsive chart
-            window.addEventListener('resize', () => {
-                if (moodChartInstance) {
-                    moodChartInstance.resize();
+            // Responsive tweak: adjust legend position for small widths (placed after chart creation)
+            function adjustMoodChartLayout() {
+                if (!moodChartInstance) return;
+                const w = chartContainer.clientWidth;
+                if (w < 420) {
+                    moodChartInstance.options.plugins.legend.position = 'bottom';
+                    moodChartInstance.options.aspectRatio = 1;
+                } else {
+                    moodChartInstance.options.plugins.legend.position = 'right';
+                    moodChartInstance.options.aspectRatio = 1;
                 }
+                moodChartInstance.update();
+            }
+
+            // initial adjust and on resize
+            adjustMoodChartLayout();
+            window.addEventListener('resize', () => {
+                adjustMoodChartLayout();
+                if (moodChartInstance) moodChartInstance.resize();
             });
 
         } catch {
@@ -1457,7 +1451,7 @@ if (filtered.length === 0) {
                 <time>${formatTimeIST(entry.created_at)}</time>
               </div>
               <audio controls style="width:100%;">
-                <source src="/${entry.audio_path}" type="audio/webm">
+                <source src="data:audio/webm;base64,${entry.audio_data}" type="audio/webm">
               </audio>
               <div class="entry-footer">
                 <span class="mood-tag">${entry.mood || "Neutral"}</span>
