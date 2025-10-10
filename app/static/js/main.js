@@ -1,9 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- IST Helper Function ---
     function toIST(date) {
-        // Convert to IST (UTC+5:30)
-        const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-        const ist = new Date(utc + (5.5 * 3600000)); // 5.5 hours in milliseconds
+        // Convert to IST (UTC+5:30) - date is already in UTC from server
+        const ist = new Date(date.getTime() + (5.5 * 3600000)); // 5.5 hours in milliseconds
         return ist;
     }
 
