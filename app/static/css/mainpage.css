@@ -224,7 +224,8 @@ main {
 .calendar-wrapper {
     background: linear-gradient(135deg, var(--notebook-paper) 0%, #f0e6d2 100%);
     border-radius: 15px;
-    overflow: hidden;
+    /* allow child shadows and padding to be visible; page-level overflow is handled globally */
+    overflow: visible;
     box-shadow:
         0 15px 35px var(--notebook-shadow),
         0 5px 15px rgba(0, 0, 0, 0.05),
@@ -338,6 +339,13 @@ main {
     background: rgba(139, 115, 85, 0.05);
 }
 
+/* Add horizontal padding to grid so first/last cells don't touch/clip the edges */
+.calendar-wrapper .calendar-grid {
+    padding: 12px 18px 28px 18px; /* top right bottom left */
+    box-sizing: border-box;
+    gap: 12px;
+}
+
 /* Make the calendar header background span the full widget width and place nav at ends
    Title is centered absolutely so it stays visually centered even when buttons differ */
 .calendar-wrapper > .calendar-header,
@@ -348,7 +356,7 @@ main {
     align-items: center !important;
     justify-content: space-between !important; /* nav buttons flush to ends */
     position: relative !important;
-    padding: 12px 14px !important;
+    padding: 12px 24px !important;
     border-radius: 12px !important;
 }
 
