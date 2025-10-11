@@ -6796,3 +6796,57 @@ body.dark-mode #todoSearch::placeholder {
         max-width: 640px;
     }
 }
+
+/* Remove unwanted horizontal scrollbars while preserving vertical scroll */
+html, body {
+    overflow-x: hidden !important; /* prevent page from scrolling horizontally */
+}
+
+/* Ensure main content and large widgets cannot overflow the viewport width */
+#content, main, .dashboard-grid, .calendar-wrapper, #calendar-container {
+    box-sizing: border-box !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+
+/* Keep vertical scrolling available on the main content area */
+#content {
+    overflow-y: auto !important;
+}
+
+/* Defensive rule: prevent oversized elements inside widgets from forcing width */
+.widget-content, .journal-writing-area, .journal-stats-card, .right-toolbar {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+/* If any element uses large fixed paddings, make sure it wraps instead of overflowing */
+* {
+    min-width: 0 !important;
+}
+
+/* Aggressive defensive rules to eliminate horizontal scrolling */
+html, body {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    position: relative !important;
+}
+
+#content, main, .dashboard-grid, .dashboard-col-left, .dashboard-col-right, .calendar-wrapper, #calendar-container {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+
+/* If any card uses large box-shadow that spills horizontally, hide overflow on its parent */
+.dashboard-col-left, .dashboard-col-right, .widget-card, .calendar-wrapper {
+    overflow: hidden !important;
+}
+
+/* Prevent wide fixed-size elements from forcing horizontal scroll */
+img, table, pre, .wide-element {
+    max-width: 100% !important;
+    height: auto !important;
+}
