@@ -470,6 +470,66 @@ main {
     to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+/* Desktop / large screens: enlarge calendar for PC view */
+@media (min-width: 992px) {
+    .calendar-wrapper {
+        max-width: 820px !important;
+        margin: 0 auto !important;
+        padding: 28px !important;
+    }
+
+    .calendar-header {
+        padding: 22px 28px !important;
+        border-radius: 14px !important;
+    }
+
+    .calendar-header h2 {
+        font-size: 1.6rem !important;
+        font-weight: 800 !important;
+    }
+
+    .calendar-grid {
+        gap: 10px !important;
+    }
+
+    /* Increase date boxes on larger screens */
+    .calendar-grid .date {
+        width: 72px !important;
+        height: 72px !important;
+        min-width: 72px !important;
+        min-height: 72px !important;
+        font-size: 1.05rem !important;
+        padding: 0 !important;
+        margin: 4px !important;
+    }
+
+    /* Make weekday labels taller and clearer */
+    .day-name {
+        padding: 18px 0 !important;
+        font-size: 1.05rem !important;
+    }
+}
+
+/* Extra-large screens: give the calendar even more presence */
+@media (min-width: 1200px) {
+    .calendar-wrapper {
+        max-width: 980px !important;
+        padding: 32px !important;
+    }
+
+    .calendar-header h2 {
+        font-size: 1.9rem !important;
+    }
+
+    .calendar-grid .date {
+        width: 88px !important;
+        height: 88px !important;
+        min-width: 88px !important;
+        min-height: 88px !important;
+        font-size: 1.15rem !important;
+    }
+}
+
 /* Slightly smaller date boxes and tighter header on very small phones */
 @media (max-width: 420px) {
     .calendar-grid .date {
@@ -3126,6 +3186,71 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     margin-bottom: 4px;
     font-family: 'Poppins', sans-serif;
     letter-spacing: -0.5px;
+}
+
+/* Polished unified styling for journal-stats-card (high specificity override) */
+.journal-stats-card.polished,
+.journal-stats-card {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 22px !important;
+    padding: 16px 20px !important;
+    max-width: 420px !important;
+    margin: 12px auto !important;
+    background: linear-gradient(135deg, #a98446 0%, #dbc07a 100%) !important;
+    color: #2b2b2b !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 30px rgba(139,115,85,0.14) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    backdrop-filter: blur(6px) !important;
+}
+
+.journal-stats-card .stat-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 56px !important;
+    padding: 6px 8px !important;
+}
+
+.journal-stats-card .stat-number {
+    font-size: 1.3rem !important;
+    font-weight: 800 !important;
+    color: #2b2b2b !important;
+    margin: 0 !important;
+}
+
+.journal-stats-card .stat-label {
+    font-size: 0.65rem !important;
+    color: rgba(43,43,43,0.66) !important;
+    margin-top: 6px !important;
+    letter-spacing: 0.6px !important;
+}
+
+@media (min-width: 992px) {
+    .journal-stats-card.polished,
+    .journal-stats-card {
+        max-width: 560px !important;
+        padding: 20px 28px !important;
+    }
+
+    .journal-stats-card .stat-number {
+        font-size: 1.6rem !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .journal-stats-card.polished,
+    .journal-stats-card {
+        max-width: 360px !important;
+        padding: 10px 12px !important;
+    }
+
+    .journal-stats-card .stat-number {
+        font-size: 1.1rem !important;
+    }
 }
 
 .stat-label {
