@@ -497,7 +497,7 @@ main {
     }
 
     .calendar-grid {
-        gap: 10px !important;
+        gap: 2px !important;
     }
 
     /* Increase date boxes on larger screens */
@@ -508,12 +508,12 @@ main {
         min-height: 72px !important;
         font-size: 1.05rem !important;
         padding: 0 !important;
-        margin: 4px !important;
+        margin: 0 !important;
     }
 
     /* Make weekday labels taller and clearer */
     .day-name {
-        padding: 18px 0 !important;
+        padding: 8px 0 !important;
         font-size: 1.05rem !important;
     }
 }
@@ -2675,14 +2675,17 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     @media (max-width: 420px) {
         .calendar-grid {
             font-size: 0.9rem; /* slightly larger text for clarity */
-            gap: 4px;
+            gap: 2px;
         }
 
         .day-name {
-            padding: 8px 6px;
-            font-size: 0.72rem;
+            padding: 6px 4px;
+            font-size: 0.8rem;
+            font-weight: 800;
             letter-spacing: 0.4px;
-            text-transform: none; /* keep capitalization natural to avoid cramping */
+            text-transform: uppercase;
+            color: #333;
+            background: rgba(139, 115, 85, 0.2);
         }
 
         .date {
