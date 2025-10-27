@@ -2650,6 +2650,40 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         padding: 8px;
     }
 
+    /* Ensure dashboard widgets are fully visible on phone */
+    .calendar-wrapper, #recent-entries-container, #mood-chart-container {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin: 4px 0 !important;
+        padding: 8px !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+
+    .calendar-grid {
+        padding: 8px !important;
+        gap: 4px !important;
+    }
+
+    .date {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        font-size: 0.85rem !important;
+    }
+
+    #moodChart {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 180px !important;
+    }
+
+    .recent-entry {
+        padding: 12px !important;
+        margin-bottom: 8px !important;
+    }
+
     .calendar-wrapper {
         padding: 10px;
         border-radius: 8px;
@@ -2958,27 +2992,53 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         margin-top: 6px;
     }
 
-    /* Ensure the stats card stays inline on small screens but compresses sizing */
+    /* Ensure the stats card stays in a single row on small screens */
     @media (max-width: 420px) {
         .journal-stats-card {
-            padding: 10px 12px !important;
-            gap: 12px !important;
-            max-width: 360px;
-            margin: 8px auto;
+            padding: 0px 0px !important;
+            gap: 0px !important;
+            max-width: 300px;
+            margin: 4px auto;
+            flex-wrap: nowrap;
+            justify-content: center;
         }
 
         .journal-stats-card .stat-item {
-            min-width: 48px !important;
-            padding: 6px 6px !important;
+            min-width: 35px !important;
+            padding: 0px 0px !important;
+            flex-shrink: 1;
         }
 
         .stat-number {
-            font-size: 1.25rem !important;
+            font-size: 0.9rem !important;
         }
 
         .stat-label {
-            font-size: 0.65rem !important;
-            margin-top: 4px !important;
+            font-size: 0.55rem !important;
+            margin-top: 2px !important;
+        }
+    }
+
+    /* For very small phones, keep in single row but make even smaller */
+    @media (max-width: 360px) {
+        .journal-stats-card {
+            padding: 0px 0px !important;
+            gap: 0px !important;
+            max-width: 280px;
+        }
+
+        .journal-stats-card .stat-item {
+            min-width: 30px !important;
+            padding: 0px 0px !important;
+        }
+
+        .stat-number {
+            font-size: 0.8rem !important;
+        }
+
+        .stat-label {
+            font-size: 0.5rem !important;
+            margin-top: 1px !important;
         }
     }
 
