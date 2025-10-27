@@ -224,7 +224,8 @@ main {
 .calendar-wrapper {
     background: linear-gradient(135deg, var(--notebook-paper) 0%, #f0e6d2 100%);
     border-radius: 15px;
-    overflow: hidden;
+    /* allow child shadows and padding to be visible; page-level overflow is handled globally */
+    overflow: visible;
     box-shadow:
         0 15px 35px var(--notebook-shadow),
         0 5px 15px rgba(0, 0, 0, 0.05),
@@ -232,6 +233,56 @@ main {
     max-width: 100%;
     border: 3px solid var(--notebook-border);
     animation: calendarSlideIn 1s ease-out;
+}
+
+/* Unified widget card look for dashboard widgets */
+.widget-card {
+    background: var(--notebook-paper);
+    border-radius: 14px;
+    border: 1px solid rgba(139,115,85,0.08);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.04);
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+/* Apply widget-card to key dashboard widgets */
+.calendar-wrapper, #recent-entries-container, #mood-chart-container {
+    background: none; /* let widget-card provide the paper look */
+}
+
+.calendar-wrapper > .calendar-header,
+#recent-entries-container > .widget-header,
+#mood-chart-container > .widget-header {
+    margin-bottom: 8px;
+}
+
+/* Wrap these containers in the widget-card style at small screens for consistent spacing */
+@media (max-width: 420px) {
+    .calendar-wrapper, #recent-entries-container, #mood-chart-container {
+        padding: 10px;
+        border-radius: 12px;
+        margin: 8px auto 18px auto;
+        max-width: 360px;
+    }
+
+    /* visually group widget content */
+    .calendar-wrapper, #recent-entries-container, #mood-chart-container {
+        background: var(--notebook-paper);
+        border: 1px solid rgba(139,115,85,0.06);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    }
+
+    /* Consistent headers */
+    .calendar-header h2, #recent-entries-container h2, #mood-chart-container h2 {
+        font-size: 1.05rem;
+        text-align: center;
+        color: var(--notebook-primary);
+        margin: 6px 0 10px 0;
+    }
+
+    /* Add breathing room between widgets */
+    #recent-entries-container { margin-top: 12px; }
+    #mood-chart-container { margin-top: 14px; }
 }
 
 .calendar-header {
@@ -249,29 +300,36 @@ main {
 }
 
 .calendar-header h2 {
-    font-size: clamp(1.2rem, 4vw, 1.6rem);
+    font-size: clamp(1rem, 3.5vw, 1.3rem);
     font-weight: 700;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-    animation: bounceIn 1s ease-out;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+    animation: none;
+    margin: 0 8px;
+}
+
+.calendar-header {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 12px;
 }
 
 .calendar-header button {
     border: none;
     background: rgba(255, 255, 255, 0.2);
     color: #fff;
-    font-size: 1.4rem;
-    padding: 12px 16px;
-    border-radius: 12px;
+    font-size: 1.2rem;
+    padding: 8px 10px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: bold;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    font-weight: 700;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
 
 .calendar-header button:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.1);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
 }
 
 .calendar-grid {
@@ -279,6 +337,49 @@ main {
     grid-template-columns: repeat(7, 1fr);
     text-align: center;
     background: rgba(139, 115, 85, 0.05);
+}
+
+/* Add horizontal padding to grid so first/last cells don't touch/clip the edges */
+.calendar-wrapper .calendar-grid {
+    padding: 12px 18px 28px 18px; /* top right bottom left */
+    box-sizing: border-box;
+    gap: 12px;
+}
+
+/* Make the calendar header background span the full widget width and place nav at ends
+   Title is centered absolutely so it stays visually centered even when buttons differ */
+.calendar-wrapper > .calendar-header,
+.calendar-wrapper .calendar-header {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important; /* nav buttons flush to ends */
+    position: relative !important;
+    padding: 12px 24px !important;
+    border-radius: 12px !important;
+}
+
+.calendar-wrapper > .calendar-header button,
+.calendar-wrapper .calendar-header button {
+    flex: 0 0 auto !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 6px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 6px !important;
+}
+
+/* center the month text regardless of button size */
+.calendar-wrapper .calendar-header h2 {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    margin: 0 !important;
+    z-index: 1 !important;
 }
 
 .day-name {
@@ -294,16 +395,25 @@ main {
 }
 
 .date {
-    padding: 22px 0;
+    /* Uniform fixed-size date cells */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
     border: 1px solid var(--notebook-border);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
     font-weight: 600;
-    font-size: 1.1em;
+    font-size: 1rem;
     position: relative;
     overflow: hidden;
     color: var(--notebook-text);
     background: rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    box-sizing: border-box;
 }
 
 .date::before {
@@ -314,7 +424,7 @@ main {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s;
+    transition: left 0.45s ease;
 }
 
 .date:hover::before {
@@ -322,34 +432,153 @@ main {
 }
 
 .date:hover {
-    background: rgba(139, 115, 85, 0.2);
-    transform: scale(1.1);
-    box-shadow: 0 5px 15px var(--notebook-shadow);
+    background: rgba(139, 115, 85, 0.12);
+    /* avoid transform scaling to keep boxes uniform */
+    box-shadow: 0 6px 18px var(--notebook-shadow);
     color: var(--notebook-text);
 }
 
 .date.today {
+    /* Keep the highlight but preserve same box sizing */
     background: linear-gradient(135deg, var(--notebook-accent), #d4af37);
     color: var(--notebook-text);
     font-weight: 800;
-    border-radius: 10px;
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
     animation: todayPulse 2s ease-in-out infinite;
-    position: relative;
 }
 
 .date.today::after {
     content: '📅';
     position: absolute;
-    top: -5px;
-    right: -5px;
+    top: -6px;
+    right: -6px;
     font-size: 0.8em;
     animation: sparkle 1.5s ease-in-out infinite;
+}
+
+/* High specificity enforcement to make all date boxes uniform regardless of other rules */
+.calendar-grid .date {
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    padding:0 !important;
+    aspect-ratio: 1 / 1 !important;
+    min-height: 48px !important;
+    border-radius: 8px !important;
+    font-size: 1rem !important;
+}
+
+.calendar-grid .date.today {
+    border-radius: 8px !important;
 }
 
 @keyframes calendarSlideIn {
     from { transform: translateY(50px) scale(0.9); opacity: 0; }
     to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Desktop / large screens: enlarge calendar for PC view */
+@media (min-width: 992px) {
+    .calendar-wrapper {
+        max-width: 820px !important;
+        margin: 0 auto !important;
+        padding: 28px !important;
+    }
+
+    .calendar-header {
+        padding: 22px 28px !important;
+        border-radius: 14px !important;
+    }
+
+    .calendar-header h2 {
+        font-size: 1.6rem !important;
+        font-weight: 800 !important;
+    }
+
+    .calendar-grid {
+        gap: 2px !important;
+    }
+
+    /* Increase date boxes on larger screens */
+    .calendar-grid .date {
+        width: 72px !important;
+        height: 72px !important;
+        min-width: 72px !important;
+        min-height: 72px !important;
+        font-size: 1.05rem !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Make weekday labels taller and clearer */
+    .day-name {
+        padding: 8px 0 !important;
+        font-size: 1.05rem !important;
+    }
+}
+
+/* Extra-large screens: give the calendar even more presence */
+@media (min-width: 1200px) {
+    .calendar-wrapper {
+        max-width: 980px !important;
+        padding: 32px !important;
+    }
+
+    .calendar-header h2 {
+        font-size: 1.9rem !important;
+    }
+
+    .calendar-grid .date {
+        width: 88px !important;
+        height: 88px !important;
+        min-width: 88px !important;
+        min-height: 88px !important;
+        font-size: 1.15rem !important;
+    }
+}
+
+/* Slightly smaller date boxes and tighter header on very small phones */
+@media (max-width: 420px) {
+    .calendar-grid .date {
+        min-height: 40px !important;
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 0.95rem !important;
+    }
+
+    .calendar-wrapper > .calendar-header,
+    .calendar-wrapper .calendar-header {
+        gap: 8px !important;
+        padding: 8px 6px !important;
+    }
+
+    .calendar-wrapper > .calendar-header button,
+    .calendar-wrapper .calendar-header button {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 1rem !important;
+        padding: 4px !important;
+    }
+}
+
+/* Ensure the centered title doesn't overflow on very narrow screens */
+@media (max-width: 360px) {
+    .calendar-wrapper .calendar-header h2 {
+        font-size: 0.95rem !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        overflow: hidden !important;
+        max-width: calc(100% - 100px) !important; /* leave space for nav buttons */
+    }
+
+    .calendar-wrapper > .calendar-header button,
+    .calendar-wrapper .calendar-header button {
+        width: 28px !important;
+        height: 28px !important;
+        padding: 3px !important;
+        font-size: 0.95rem !important;
+    }
 }
 
 @keyframes bounceIn {
@@ -514,10 +743,10 @@ main {
     background: var(--notebook-paper);
     color: var(--notebook-text);
     border: 2px solid var(--notebook-border);
-    padding: 14px 28px;
+    padding: 10px 18px;
     border-radius: 10px;
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow:
@@ -526,8 +755,8 @@ main {
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
     position: relative;
     overflow: hidden;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    text-transform: none;
+    letter-spacing: 0.4px;
     backdrop-filter: blur(10px);
     font-family: 'Poppins', sans-serif;
 }
@@ -971,6 +1200,43 @@ main {
     transition: all 0.2s ease-in-out;
 }
 
+/* Mobile (small-width) adjustments for voice controls - target ~412px view */
+@media (max-width: 420px) {
+    .voice-recorder-section {
+        padding: 18px;
+        margin-bottom: 20px;
+        border-radius: 12px;
+    }
+
+    #waveform {
+        height: 120px;
+    }
+
+    .recording-timer {
+        top: 8px;
+        right: 8px;
+        padding: 4px 8px;
+        font-size: 0.9rem;
+        border-radius: 16px;
+    }
+
+    .voice-controls {
+        gap: 8px;
+    }
+
+    .voice-controls button {
+        flex: 1 1 100%; /* stack full-width buttons on small screens */
+        min-width: 0;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+    }
+
+    /* If you prefer inline small buttons instead of full width, uncomment below and comment the block above
+    .voice-controls button { flex: 1 1 30%; min-width: 80px; padding: 8px 10px; font-size: 0.9rem; }
+    */
+}
+
 #recordBtn { background: #e74c3c; }
 #pauseBtn { background: #f1c40f; }
 #saveBtn { background: #2ecc71; }
@@ -1336,6 +1602,8 @@ body.sidebar-active #content {
         font-size: 1.15em;
     }
 }
+
+/* (reverted) mobile sidebar override removed to restore original sidebar behavior on small screens */
 
 /* Intermediate screen improvements (tablets and small laptops) */
 @media (max-width: 1200px) and (min-width: 769px) {
@@ -2161,9 +2429,12 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     }
 
     .journal-stats-card {
-        flex-direction: column;
-        gap: 12px;
-        padding: 15px;
+        display: flex;
+        flex-direction: row !important;
+        gap: 18px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 12px 18px !important;
     }
 
     .stat-item {
@@ -2400,6 +2671,46 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         padding: 10px 0;
     }
 
+    /* Very small screen (phones ~412px) - make calendar less congested */
+    @media (max-width: 420px) {
+        .calendar-grid {
+            font-size: 0.9rem; /* slightly larger text for clarity */
+            gap: 2px;
+        }
+
+        .day-name {
+            padding: 6px 4px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #333;
+            background: rgba(139, 115, 85, 0.2);
+        }
+
+        .date {
+            padding: 8px 0;
+            min-height: 44px;
+            font-size: 1rem;
+        }
+
+        .calendar-header h2 {
+            font-size: 1.05rem;
+        }
+
+        .calendar-header button {
+            padding: 8px 10px;
+            font-size: 1.1rem;
+        }
+
+        .calendar-header {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:8px;
+        }
+    }
+
     /* Chart on very small screens */
     #moodChart {
         max-width: 250px !important;
@@ -2437,6 +2748,65 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         padding: 6px;
         margin-right: 8px;
     }
+
+/* Additional mobile fixes to remove unwanted dashboard scrolling and tighten calendar */
+@media (max-width: 420px) {
+    /* Let the body/page flow naturally on phones instead of forcing a full-viewport height */
+    body {
+        height: auto;
+        overflow: auto;
+    }
+
+    /* Allow content to flow and avoid double-scroll behavior */
+    #content {
+        padding: 8px;
+        overflow: visible; /* let page scroll naturally */
+    }
+
+    /* Stack dashboard columns and reduce gaps */
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 6px;
+    }
+
+    /* Reduce calendar container min height so it won't force scroll */
+    #calendar-container,
+    .calendar-wrapper {
+        min-height: auto !important;
+        padding: 8px !important;
+        margin: 0 !important;
+        border-radius: 10px !important;
+        box-shadow: none !important;
+        border-width: 1px !important;
+    }
+
+    /* Make grid rows more compact and consistent for touch */
+    .calendar-grid {
+        grid-auto-rows: minmax(40px, auto);
+        gap: 6px;
+    }
+
+    /* Reduce excessive paddings on date cells */
+    .date {
+        padding: 6px 0 !important;
+        min-height: 40px !important;
+        border-radius: 6px;
+        margin: 2px 0;
+    }
+
+    /* Reduce surrounding spacing for widgets */
+    #recent-entries-container, #dashboard-widgets {
+        min-height: auto !important;
+        padding: 8px !important;
+    }
+
+    /* Avoid forcing chart sizes that push the page taller than viewport */
+    #moodChart, #mood-chart-container {
+        max-width: 320px !important;
+        height: auto !important;
+    }
+}
 
     /* Sidebar very small */
     .sidebar {
@@ -2552,21 +2922,72 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         font-size: 0.65rem;
     }
 
+    /* Journal stats card (compact, center-aligned numbers) */
     .journal-stats-card {
-        padding: 12px;
-        gap: 8px;
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        padding: 10px 14px;
+        background: linear-gradient(180deg, rgba(216,180,92,0.12), rgba(212,175,55,0.06));
+        border-radius: 12px;
+        border: 1px solid rgba(139,115,85,0.08);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.04);
     }
 
-    .stat-item {
-        padding: 4px 0;
+    .journal-stats-card .stat-item {
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        padding: 4px 8px;
+        min-width:64px;
     }
 
     .stat-number {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--notebook-text, #2b2b2b);
+        line-height: 1;
     }
 
     .stat-label {
-        font-size: 0.8rem;
+        font-size: 0.7rem;
+        color: #7b6e5a;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-top: 6px;
+    }
+
+    /* Ensure the stats card stays inline on small screens but compresses sizing */
+    @media (max-width: 420px) {
+        .journal-stats-card {
+            padding: 10px 12px !important;
+            gap: 12px !important;
+            max-width: 360px;
+            margin: 8px auto;
+        }
+
+        .journal-stats-card .stat-item {
+            min-width: 48px !important;
+            padding: 6px 6px !important;
+        }
+
+        .stat-number {
+            font-size: 1.25rem !important;
+        }
+
+        .stat-label {
+            font-size: 0.65rem !important;
+            margin-top: 4px !important;
+        }
+    }
+
+    /* Right toolbar to align export button with stats card */
+    .right-toolbar {
+        display:flex;
+        align-items:center;
+        justify-content:flex-end;
+        margin-left: 12px;
     }
 
     /* Todo list very small */
@@ -2776,6 +3197,71 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     margin-bottom: 4px;
     font-family: 'Poppins', sans-serif;
     letter-spacing: -0.5px;
+}
+
+/* Polished unified styling for journal-stats-card (high specificity override) */
+.journal-stats-card.polished,
+.journal-stats-card {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 22px !important;
+    padding: 16px 20px !important;
+    max-width: 420px !important;
+    margin: 12px auto !important;
+    background: linear-gradient(135deg, #a98446 0%, #dbc07a 100%) !important;
+    color: #2b2b2b !important;
+    border-radius: 14px !important;
+    box-shadow: 0 10px 30px rgba(139,115,85,0.14) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    backdrop-filter: blur(6px) !important;
+}
+
+.journal-stats-card .stat-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 56px !important;
+    padding: 6px 8px !important;
+}
+
+.journal-stats-card .stat-number {
+    font-size: 1.3rem !important;
+    font-weight: 800 !important;
+    color: #2b2b2b !important;
+    margin: 0 !important;
+}
+
+.journal-stats-card .stat-label {
+    font-size: 0.65rem !important;
+    color: rgba(43,43,43,0.66) !important;
+    margin-top: 6px !important;
+    letter-spacing: 0.6px !important;
+}
+
+@media (min-width: 992px) {
+    .journal-stats-card.polished,
+    .journal-stats-card {
+        max-width: 560px !important;
+        padding: 20px 28px !important;
+    }
+
+    .journal-stats-card .stat-number {
+        font-size: 1.6rem !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .journal-stats-card.polished,
+    .journal-stats-card {
+        max-width: 360px !important;
+        padding: 10px 12px !important;
+    }
+
+    .journal-stats-card .stat-number {
+        font-size: 1.1rem !important;
+    }
 }
 
 .stat-label {
@@ -5526,6 +6012,55 @@ body.dark-mode .platform-modal .modal-content {
     transform: translateY(-1px);
 }
 
+/* Small screen tweaks to keep todo controls visible and well-placed */
+@media (max-width: 420px) {
+    .todo-filters {
+        padding: 12px;
+        margin-bottom: 18px;
+    }
+
+    .filter-buttons,
+    .category-filters {
+        gap: 8px;
+        justify-content: flex-start;
+    }
+
+    .filter-buttons .filter-btn,
+    .category-filters .category-filter {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        border-radius: 16px;
+    }
+
+    .todo-actions-bar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding-top: 12px;
+        flex-wrap: wrap;
+    }
+
+    #todoSearch {
+        flex: 1 1 100%;
+        order: 1;
+        margin-bottom: 8px;
+    }
+
+    .action-btn {
+        flex: 0 0 auto;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        border-radius: 18px;
+        box-shadow: 0 6px 18px rgba(255, 107, 107, 0.25);
+        background: linear-gradient(135deg, #ff7b7b, #ff5a44);
+        color: white;
+        position: relative;
+        order: 2;
+        z-index: 80;
+        margin-left: auto;
+    }
+}
+
 .todo-list {
     min-height: 200px;
 }
@@ -5984,6 +6519,22 @@ body.dark-mode #todoSearch::placeholder {
 
 .widget-content { padding: 8px; display: flex; align-items: center; justify-content: center; }
 
+/* Center mood tracker chart inside its widget */
+#mood-chart-container {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+}
+
+#moodChart {
+    display:block;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+}
+
 /* Ensure the smaller override matches the default responsive rules */
 #moodChart {
     display: block !important;
@@ -6146,6 +6697,167 @@ body.dark-mode #todoSearch::placeholder {
     }
 }
 
+/* Remove left/right margins for the stats and other elements on very small screens */
+@media (max-width: 420px) {
+    #journalStats,
+    .sticky-journal-stats,
+    .journal-stats {
+        width: calc(100% - 16px) !important;
+        margin-left: 8px !important;
+        margin-right: 8px !important;
+    }
+
+    /* Also remove any residual left margins on headers/widgets */
+    .calendar-wrapper,
+    #recent-entries-container,
+    #mood-chart-container {
+        margin-left: 8px !important;
+        margin-right: 8px !important;
+    }
+}
+
 /* Recent entries list styling placeholder (if list inserted by JS) */
 #recent-entries-container .entry { padding: 10px; border-bottom: 1px dashed rgba(0,0,0,0.05); }
 #recent-entries-container .entry:last-child { border-bottom: none; }
+
+/* Center-align major dashboard widgets and their content */
+.dashboard-col-left, .dashboard-col-right, #dashboard-widgets {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.calendar-wrapper, #recent-entries-container, #mood-chart-container {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: 720px;
+    width: 100%;
+}
+
+.calendar-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.calendar-wrapper .calendar-header,
+#recent-entries-container .widget-content,
+#mood-chart-container .widget-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.calendar-header h2, #recent-entries-container h2, #mood-chart-container h2 {
+    text-align: center;
+    margin-left: 0;
+}
+
+/* Ensure widget cards are centered on very small screens too */
+@media (max-width: 420px) {
+    .calendar-wrapper, #recent-entries-container, #mood-chart-container {
+        max-width: 360px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    .calendar-grid .date {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        font-size: 0.95rem !important;
+    }
+}
+
+/* Make the whole dashboard center-aligned on small and narrow screens */
+@media (max-width: 980px) {
+    .dashboard-grid {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 18px;
+        padding: 12px;
+    }
+
+    /* Constrain child widgets and center them */
+    .dashboard-grid > * {
+        width: 100%;
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    /* Center the topbar search while keeping the hamburger on the left */
+    .topbar {
+        position: relative;
+    }
+
+    .hamburger {
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        z-index: 1200;
+    }
+
+    .topbar input {
+        display: block;
+        margin: 0 auto;
+        width: calc(100% - 80px);
+        max-width: 640px;
+    }
+}
+
+/* Remove unwanted horizontal scrollbars while preserving vertical scroll */
+html, body {
+    overflow-x: hidden !important; /* prevent page from scrolling horizontally */
+}
+
+/* Ensure main content and large widgets cannot overflow the viewport width */
+#content, main, .dashboard-grid, .calendar-wrapper, #calendar-container {
+    box-sizing: border-box !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+
+/* Keep vertical scrolling available on the main content area */
+#content {
+    overflow-y: auto !important;
+}
+
+/* Defensive rule: prevent oversized elements inside widgets from forcing width */
+.widget-content, .journal-writing-area, .journal-stats-card, .right-toolbar {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+/* If any element uses large fixed paddings, make sure it wraps instead of overflowing */
+* {
+    min-width: 0 !important;
+}
+
+/* Aggressive defensive rules to eliminate horizontal scrolling */
+html, body {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    position: relative !important;
+}
+
+#content, main, .dashboard-grid, .dashboard-col-left, .dashboard-col-right, .calendar-wrapper, #calendar-container {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+
+/* If any card uses large box-shadow that spills horizontally, hide overflow on its parent */
+.dashboard-col-left, .dashboard-col-right, .widget-card, .calendar-wrapper {
+    overflow: hidden !important;
+}
+
+/* Prevent wide fixed-size elements from forcing horizontal scroll */
+img, table, pre, .wide-element {
+    max-width: 100% !important;
+    height: auto !important;
+}
