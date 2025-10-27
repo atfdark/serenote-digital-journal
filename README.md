@@ -1,6 +1,6 @@
 # 🌸 Serenote – Your Digital Journaling Companion
 
-A compassionate digital journaling app that helps you **track your thoughts, emotions, and personal growth** through beautiful, gamified experiences.
+Serenote is a compassionate digital journaling website that helps you reflect on your thoughts, emotions, and personal growth. It combines journaling, mood tracking, and gamified mindfulness through a beautiful Mood Garden. With customizable themes and insights, Serenote makes self-care simple, engaging, and emotionally rewarding.
 
 ---
 
@@ -35,7 +35,34 @@ A compassionate digital journaling app that helps you **track your thoughts, emo
 - **Task Organization** – Create, edit, and manage daily tasks  
 - **Priority Levels** – Categorize tasks by urgency  
 - **Due Dates** – Set reminders for upcoming or overdue tasks  
-- **Category System** – Organize by work, personal, health, and more  
+- **Category System** – Organize by work, personal, health, and more
+
+
+## 🗂️ Database Schema
+
+| Table Name     | Description                                      |
+|----------------|--------------------------------------------------|
+| **Users**       | Handles authentication and user management       |
+| **Entries**     | Stores text and voice journal entries            |
+| **Garden**      | Tracks mood garden state and user achievements   |
+| **GardenFlower**| Monitors individual flower growth and status     |
+| **Todo**        | Manages tasks, priorities, and deadlines         |
+
+---
+
+## 🎨 Customization
+
+### 🎨 Themes & Styling
+- **Built-in Themes:** Default, Nature, Abstract, Minimalist  
+- **Custom Backgrounds:** Upload your own images  
+- **Font Options:** Choose from multiple typefaces  
+- **Color Customization:** Personalize text and background colors  
+
+### 🌼 Garden Configuration
+- **Mood-Flower Mapping:** Define which flowers represent specific moods  
+- **Seasonal Themes:** Adjust color palettes for each season  
+- **Achievements:** Add new badges and milestones  
+
 
 ---
 
@@ -44,7 +71,6 @@ A compassionate digital journaling app that helps you **track your thoughts, emo
 ### Prerequisites
 - Python **3.8+**
 - **PostgreSQL** (optional; SQLite fallback available)
-- **OpenAI API Key** (for AI features)
 
 ### Installation
 
