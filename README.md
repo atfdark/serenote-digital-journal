@@ -1,53 +1,97 @@
-# Serenote 🌱
+# 🌸 Serenote – Your Digital Journaling Companion
 
-A compassionate digital journaling companion that helps you track your thoughts, emotions, and personal growth through beautiful, gamified experiences.
+Serenote is a compassionate digital journaling website that helps you reflect on your thoughts, emotions, and personal growth. It combines journaling, mood tracking, and gamified mindfulness through a beautiful Mood Garden. With customizable themes and insights, Serenote makes self-care simple, engaging, and emotionally rewarding.
 
-![Serenote Banner](https://via.placeholder.com/800x200/8b7355/ffffff?text=Serenote+-+Your+Digital+Journal+Companion)
+---
 
 ## ✨ Features
 
-### 📖 **Intelligent Journaling**
-- **Text Entries**: Write and customize your journal entries with themes, fonts, and colors
-- **Voice Notes**: Record audio thoughts with built-in waveform visualization
-- **Time Capsules**: Lock entries to be opened on future dates
-- **Mood Tracking**: Associate emotions with each entry for deeper self-reflection
+### 📖 Intelligent Journaling
+- **Text Entries** – Write and customize your journals with themes, fonts, and colors  
+- **Voice Notes** – Record audio thoughts with built-in waveform visualization  
+- **Time Capsules** – Lock entries to be opened on future dates  
+- **Mood Tracking** – Associate emotions with each entry for deeper self-reflection  
 
-### 🌱 **Mood Garden Gamification**
-- **Emotional Growth**: Watch flowers bloom based on your mood patterns
-- **Seasonal Themes**: Experience spring, summer, autumn, and winter garden transformations
-- **Achievement System**: Unlock badges for journaling milestones and consistency
-- **Watering Mechanics**: Maintain your garden's health through daily care
+### 🌱 Mood Garden Gamification
+- **Emotional Growth** – Watch flowers bloom based on your mood patterns  
+- **Seasonal Themes** – Experience spring, summer, autumn, and winter transformations  
+- **Achievements** – Unlock badges for journaling milestones and consistency  
+- **Watering Mechanics** – Keep your garden thriving through daily care  
 
-### 🧘 **Compassionate AI Support**
-- **Emotion Recognition**: AI analyzes your entries to provide tailored support
-- **Guided Prompts**: Get personalized journaling suggestions based on your mood
-- **Breathing Exercises**: Interactive breathing guides for different emotional states
-- **Music Recommendations**: Curated playlists to match your current feelings
-- **Comforting Quotes**: Inspirational messages from various sources
+### 🧘 Compassionate AI Support
+- **Emotion Recognition** – AI analyzes entries to offer tailored support  
+- **Guided Prompts** – Personalized journaling suggestions based on your mood  
+- **Breathing Exercises** – Interactive breathing guides for emotional regulation  
+- **Music Recommendations** – Curated playlists matching your feelings  
+- **Comforting Quotes** – Inspirational and uplifting messages  
 
-### 📊 **Analytics & Insights**
-- **Mood Dashboard**: Visualize your emotional patterns over time
-- **Journaling Streaks**: Track your consistency and writing habits
-- **Progress Tracking**: Monitor your personal growth journey
-- **Export Functionality**: Generate beautiful PDF exports of your journal
+### 📊 Analytics & Insights
+- **Mood Dashboard** – Visualize emotional trends over time  
+- **Journaling Streaks** – Track your writing consistency  
+- **Progress Tracking** – Reflect on your personal growth journey  
+- **Export Functionality** – Generate beautiful PDF exports of your journal  
 
-### ✅ **Todo Management**
-- **Task Organization**: Create, edit, and manage your daily tasks
-- **Priority Levels**: High, medium, and low priority categorization
-- **Due Dates**: Set deadlines and get reminders for overdue tasks
-- **Category System**: Organize tasks by work, personal, health, etc.
+### ✅ Todo Management
+- **Task Organization** – Create, edit, and manage daily tasks  
+- **Priority Levels** – Categorize tasks by urgency  
+- **Due Dates** – Set reminders for upcoming or overdue tasks  
+- **Category System** – Organize by work, personal, health, and more
+
+
+## 🗂️ Database Schema
+
+| Table Name     | Description                                      |
+|----------------|--------------------------------------------------|
+| **Users**       | Handles authentication and user management       |
+| **Entries**     | Stores text and voice journal entries            |
+| **Garden**      | Tracks mood garden state and user achievements   |
+| **GardenFlower**| Monitors individual flower growth and status     |
+| **Todo**        | Manages tasks, priorities, and deadlines         |
+
+---
+
+## 🎨 Customization
+
+### 🎨 Themes & Styling
+- **Built-in Themes:** Default, Nature, Abstract, Minimalist  
+- **Custom Backgrounds:** Upload your own images  
+- **Font Options:** Choose from multiple typefaces  
+- **Color Customization:** Personalize text and background colors  
+
+### 🌼 Garden Configuration
+- **Mood-Flower Mapping:** Define which flowers represent specific moods  
+- **Seasonal Themes:** Adjust color palettes for each season  
+- **Achievements:** Add new badges and milestones  
+
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- PostgreSQL (optional - SQLite fallback available)
-- OpenAI API key (for AI features)
+- Python **3.8+**
+- **PostgreSQL** (optional; SQLite fallback available)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/serenote.git
-   cd serenote
+```bash
+# 1️⃣ Clone the repository
+git clone https://github.com/yourusername/serenote.git
+cd serenote
 
+# 2️⃣ Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate        # On Windows: venv\Scripts\activate
+
+# 3️⃣ Install dependencies
+pip install -r requirements.txt
+
+# 4️⃣ Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# 5️⃣ Initialize the database
+python setup_db.py
+
+# 6️⃣ Run the application
+python run.py
