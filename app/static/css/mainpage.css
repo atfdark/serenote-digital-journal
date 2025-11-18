@@ -180,12 +180,13 @@ main {
     box-shadow: 0 0 0 2px rgba(139, 115, 85, 0.2);
 }
 
+/* button */
 .dark-mode-btn {
     background: none;
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    margin-left: 10px;
+    margin-left: 71rem;
     transition: transform 0.2s, outline 0.2s;
     padding: 8px;
     border-radius: 4px;
@@ -2070,6 +2071,14 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         font-size: 16px; /* Prevent zoom on input focus */
     }
 
+    .dark-mode-btn {
+        /* font-size: 1.4rem; */
+        /* padding: 8px; */
+        /* min-width: 44px; */
+        min-height: 40px;
+        margin-left: 21rem;
+    }
+
     .sidebar {
         transform: translateX(-100%);
         transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2639,6 +2648,11 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     /* General very small screen adjustments */
     body {
         font-size: 14px;
+    }
+
+    .dark-mode-btn {
+        font-size: 2rem;
+        /* padding: 0px; */
     }
 
     .dashboard-grid {

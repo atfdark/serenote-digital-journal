@@ -82,23 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
         darkModeToggle.textContent = '☀️';
     }
 
-    // Search functionality
-    const searchBar = document.getElementById('searchBar');
-    let searchTimeout;
-    searchBar.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            const query = e.target.value.toLowerCase().trim();
-            if (query) {
-                performSearch(query);
-            } else {
-                // Reload current page content
-                const currentPage = document.querySelector('.sidebar nav ul li.active').getAttribute('data-page');
-                loadPageContent(currentPage);
-            }
-        }, 300);
-    });
-
     darkModeToggle.addEventListener('click', () => {
         body.classList.toggle('dark-mode');
         const isDark = body.classList.contains('dark-mode');
@@ -551,62 +534,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Search Function ---
-    async function performSearch(query) {
-        try {
-            const entries = await api.get(`/entries/user/${userId}`);
-            const filteredEntries = entries.filter(entry =>
-                entry.title.toLowerCase().includes(query) ||
-                entry.content.toLowerCase().includes(query) ||
-                (entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(query)))
-            );
-
-            // Display search results
-            const container = document.getElementById("journalContainer") || content;
-            container.innerHTML = `<h3>🔍 Search Results for "${query}"</h3>`;
-
-            if (filteredEntries.length === 0) {
-                container.innerHTML += '<p>No entries found matching your search.</p>';
-                return;
-            }
-
-            filteredEntries.forEach(entry => {
-                const div = document.createElement("div");
-                div.classList.add("journal-entry");
-                div.dataset.entryId = entry.id;
-
-                const previewText = getContentPreview(entry.content);
-                div.innerHTML = `
-                    <div class="entry-header">
-                        <h3>${entry.title}</h3>
-                        <time>${formatDateIST(entry.created_at)}</time>
-                    </div>
-                    <div class="entry-content">
-                        <p class="content-preview">${previewText}</p>
-                    </div>
-                    <div class="entry-footer">
-                        <span class="mood-tag">${entry.mood || "Neutral"}</span>
-                        ${entry.tags ? entry.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}
-                    </div>`;
-
-                container.appendChild(div);
-            });
-
-            // Add click handlers for search results
-            container.addEventListener('click', (e) => {
-                if (e.target.closest('.journal-entry')) {
-                    const entryId = e.target.closest('.journal-entry').dataset.entryId;
-                    const entry = filteredEntries.find(e => e.id == entryId);
-                    if (entry) {
-                        showJournalEntryModal(entry.title, entry.content, entry.mood, 'default', entry.created_at);
-                    }
-                }
-            });
-
-        } catch (error) {
-            console.error('Search failed:', error);
-        }
-    }
 
     // --- Page Loader ---
     function showLoader() {
