@@ -71,6 +71,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    const usernameDisplay = document.querySelector(".username-display");
+    const profileBtn = document.getElementById("profileBtn");
+
+    async function loadUserDetails() {
+        if (!usernameDisplay) return;
+        try {
+            const { username } = await api.get(`/auth/user/${userId}`);
+            usernameDisplay.textContent = username;
+            if (profileBtn) {
+                profileBtn.setAttribute("aria-label", `Profile menu for ${username}`);
+                profileBtn.setAttribute("title", username);
+            }
+        } catch (error) {
+            console.error("Failed to load user details", error);
+            usernameDisplay.textContent = "User";
+        }
+    }
+
+    loadUserDetails();
+
     let moodChartInstance = null;
 
     // Dark Mode
@@ -82,6 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
         rootElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
         if (darkModeToggle) {
             darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+        }
+        // Change logo based on theme
+        const logoImg = document.querySelector('.sidebar .logo img');
+        if (logoImg) {
+            logoImg.src = isDark ? '/static/assets/whiteloge.png' : '/static/assets/logo.png';
         }
     };
 
@@ -2019,10 +2044,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-
-        setInterval(() => {
-            renderRecordings();
-        }, 5000); // Initial render
     }
 
     // ================= TODO LIST =================

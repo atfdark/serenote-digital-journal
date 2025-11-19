@@ -15,28 +15,34 @@
     --notebook-border: #d4c4a8;
 }
 
-/* Midnight Library Dark Palette */
+/* Midnight Library Dark Palette - Enhanced */
 :root[data-theme="dark"] {
-    --bg-night: #090705;
-    --bg-veil: rgba(33, 23, 17, 0.88);
-    --card-moss: #21140e;
-    --card-border: #3a2519;
-    --text-starlight: #f4e3c1;
-    --text-moonlit: #d8cab3;
-    --text-muted: #b6a48f;
-    --accent-gold: #d4af37;
-    --accent-moon-gold: #e7c878;
-    --accent-earth: #7c4b25;
-    --accent-ember: #a6652a;
-    --button-gradient-start: #d4af37;
-    --button-gradient-end: #b47d28;
-    --button-text: #2a1a12;
-    --input-surface: #170f0b;
-    --input-border: #3f291b;
-    --input-placeholder: #a18971;
-    --divider: #2b1a12;
-    --shadow-soft: 0 18px 35px rgba(0, 0, 0, 0.45);
-    --focus-ring: 0 0 0 2px rgba(212, 175, 55, 0.45);
+    --bg-night: #0a0806;
+    --bg-veil: rgba(42, 32, 24, 0.92);
+    --card-moss: #241812;
+    --card-border: #4a3525;
+    --text-starlight: #f8f0e6;
+    --text-moonlit: #e4d4c0;
+    --text-muted: #c4b49a;
+    --accent-gold: #f0c674;
+    --accent-moon-gold: #f7d794;
+    --accent-earth: #9b6b4a;
+    --accent-ember: #c48c5f;
+    --button-gradient-start: #f0c674;
+    --button-gradient-end: #d4a574;
+    --button-text: #1a0f08;
+    --input-surface: #1c1410;
+    --input-border: #5a4230;
+    --input-placeholder: #b8a085;
+    --divider: #3a2a1e;
+    --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 25px rgba(240, 198, 116, 0.15);
+    --focus-ring: 0 0 0 3px rgba(240, 198, 116, 0.3);
+    --border-subtle: rgba(240, 198, 116, 0.1);
+    --hover-overlay: rgba(240, 198, 116, 0.08);
+    --garden-bg: linear-gradient(to bottom, #1a2a1e 0%, #2a3a2e 30%, #3a4a3e 70%, #4a5a4e 100%);
+    --garden-border: var(--accent-earth);
+    --garden-shadow: 0 15px 35px var(--shadow-soft), 0 5px 15px rgba(0,0,0,0.3), inset 0 0 30px rgba(240, 198, 116, 0.05);
 }
 
 * {
@@ -64,6 +70,67 @@ body {
 button, .clickable, input[type="checkbox"], select, input[type="datetime-local"], input[type="color"] {
     min-height: 44px;
     min-width: 44px;
+}
+
+/* Username display animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-50%) translateX(20px); }
+    to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(-50%) translateX(0); }
+    to { opacity: 0; transform: translateY(-50%) translateX(-20px); }
+}
+
+/* Username display styling */
+.profile-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.profile-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.2s, outline 0.2s;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.username-display {
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(139, 115, 85, 0.2);
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 1000;
+    white-space: nowrap;
+    margin-left: 10px;
+}
+
+.profile-container:hover .username-display {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+
+/* Dark mode adjustments */
+[data-theme="dark"] .username-display {
+    background: rgba(30, 30, 30, 0.95);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Better scrolling on mobile */
@@ -928,7 +995,7 @@ main {
     font-size: 1rem;
     margin-bottom: 5px;
 }
-.inputs-group select, body.dark-mode input, body.dark-mode textarea, body.dark-mode select
+
 @keyframes selectorsFadeIn {
     from {
         opacity: 0;
@@ -3315,6 +3382,15 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     backdrop-filter: blur(6px) !important;
 }
 
+/* Dark mode for journal stats card */
+body.dark-mode .journal-stats-card.polished,
+body.dark-mode .journal-stats-card {
+    background: linear-gradient(135deg, var(--accent-earth) 0%, var(--accent-ember) 100%) !important;
+    color: var(--text-starlight) !important;
+    box-shadow: var(--shadow-soft) !important;
+    border: 1px solid var(--card-border) !important;
+}
+
 .journal-stats-card .stat-item {
     display: flex !important;
     flex-direction: column !important;
@@ -4722,6 +4798,10 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     font-size: 1.1em;
 }
 
+body.dark-mode .mood-garden-container p {
+    color: var(--text-moonlit);
+}
+
 .garden {
     position: relative;
     width: 100%;
@@ -4735,6 +4815,15 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
         0 5px 15px rgba(0,0,0,0.1),
         inset 0 0 30px rgba(255,255,255,0.2);
     animation: gardenGrow 2s ease-out;
+}
+
+body.dark-mode .garden {
+    background: linear-gradient(to bottom, #1a2a1e 0%, #2a3a2e 30%, #3a4a3e 70%, #4a5a4e 100%);
+    border: 3px solid var(--accent-earth);
+    box-shadow:
+        0 15px 35px var(--shadow-soft),
+        0 5px 15px rgba(0,0,0,0.3),
+        inset 0 0 30px rgba(230, 200, 74, 0.05);
 }
 
 .garden::before {
@@ -4826,6 +4915,11 @@ button, input[type="text"], input[type="datetime-local"], textarea, select {
     font-size: 3em;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.5);
     filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.4));
+}
+
+body.dark-mode .flower-emoji {
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5), 0 0 20px rgba(230, 200, 74, 0.3);
+    filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.6));
 }
 
 /* Petals and bloom animation */
@@ -5243,11 +5337,12 @@ body.dark-mode .section-title {
 }
 
 body.dark-mode .sidebar {
-    background: var(--bg-veil);
+    background: linear-gradient(180deg, var(--bg-veil), rgba(42, 32, 24, 0.95));
     color: var(--text-starlight);
-    border-right: 1px solid var(--card-border);
-    backdrop-filter: blur(18px);
+    border-right: 2px solid var(--card-border);
+    backdrop-filter: blur(20px);
     box-shadow: var(--shadow-soft);
+    transition: all 0.3s ease;
 }
 
 body.dark-mode .sidebar nav ul li {
@@ -5280,7 +5375,7 @@ body.dark-mode .topbar input::placeholder {
 }
 
 body.dark-mode #content {
-    background: linear-gradient(135deg, rgba(9, 7, 5, 0.96), rgba(31, 21, 15, 0.94));
+    background: linear-gradient(135deg, var(--bg-night) 0%, rgba(26, 20, 16, 0.98) 50%, rgba(42, 32, 24, 0.96) 100%);
 }
 
 body.dark-mode .journal-container textarea {
@@ -5330,15 +5425,17 @@ body.dark-mode .date {
 
 body.dark-mode .date:hover,
 body.dark-mode .date.active {
-    background: rgba(212, 175, 55, 0.12);
+    background: var(--hover-overlay);
     border-color: var(--accent-moon-gold);
     color: var(--text-starlight);
+    box-shadow: 0 4px 12px rgba(230, 200, 74, 0.2);
+    transform: translateY(-1px);
 }
 
-body.dark-mode .journal-container textarea:focus,
 body.dark-mode .topbar input:focus {
     outline: none;
     box-shadow: var(--focus-ring);
+    background: var(--input-surface);
 }
 
 body.dark-mode .btn-export-entry,
@@ -5388,7 +5485,9 @@ body.dark-mode textarea::placeholder {
 }
 
 body.dark-mode .recent-entry {
-    border-bottom: 1px solid var(--divider);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--card-moss);
+    color: var(--text-moonlit);
 }
 
 body.dark-mode .modal-content {
