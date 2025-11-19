@@ -1887,58 +1887,87 @@ if (filtered.length === 0) {
             const list = document.getElementById("recordingsList");
             if (!list) return;
             list.innerHTML = "";
+        
             try {
                 console.log("Voice note: Fetching entries for user", userId);
                 const entries = await api.get(`/entries/user/${userId}`);
                 console.log("Voice note: Total entries received:", entries.length);
+        
                 const voiceEntries = entries.filter(e => e.type === 'voice');
                 console.log("Voice note: Voice entries found:", voiceEntries.length);
-                const now = toIST(new Date());
-
+        
+                const now = new Date();
+        
                 if (voiceEntries.length === 0) {
                     list.innerHTML = "<p>No recordings yet.</p>";
                     return;
                 }
-
-                // Sort voice entries by creation date (newest first)
+        
+                // newest first
                 voiceEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         
                 voiceEntries.forEach(entry => {
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
-
+        
                     const title = document.createElement("h3");
                     title.classList.add("recording-title");
                     title.textContent = entry.title || "Voice Note";
-
+        
                     const time = document.createElement("p");
                     time.classList.add("recording-time");
-
+        
                     const delBtn = document.createElement("button");
                     delBtn.classList.add("delete-note");
                     delBtn.textContent = "🗑 Delete";
                     delBtn.onclick = () => deleteRecording(entry.id);
-
-                    if (entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now) {
-                        time.innerHTML = `🔒 Locked until ${formatDateTimeIST(entry.capsule_open_date)}`;
-                        wrapper.classList.add('locked-note');
-                    } else {
+        
+                    // -------------------------------
+                    // ⭐ NEW TIME CAPSULE LOGIC ⭐
+                    // -------------------------------
+                    if (entry.is_capsule && entry.capsule_open_date) {
+                        const unlockDate = new Date(entry.capsule_open_date);
+        
+                        if (now < unlockDate) {
+                            // Capsule still locked
+                            time.innerHTML = `🔒 Locked until ${formatDateTimeIST(unlockDate)}`;
+                            wrapper.classList.add("locked-note");
+                        } else {
+                            // Capsule unlocked → show audio
+                            time.textContent = `✨ Unlocked! (Recorded: ${formatDateTimeIST(entry.created_at)})`;
+        
+                            const audioContainer = document.createElement("div");
+                            audioContainer.classList.add("audio-container");
+        
+                            const audio = document.createElement("audio");
+                            audio.controls = true;
+                            audio.preload = "metadata";
+        
+                            if (entry.audio_data) {
+                                audio.src = `data:audio/webm;base64,${entry.audio_data}`;
+                            }
+        
+                            audioContainer.appendChild(audio);
+                            wrapper.appendChild(audioContainer);
+                        }
+                    } 
+                    // -------------------------------
+                    // Normal (non-capsule) voice notes
+                    // -------------------------------
+                    else {
                         time.textContent = formatDateTimeIST(entry.created_at);
-
-                        // Create audio element using base64 data
+        
                         const audioContainer = document.createElement("div");
                         audioContainer.classList.add("audio-container");
-
+        
                         const audio = document.createElement("audio");
                         audio.controls = true;
                         audio.preload = "metadata";
-
-                        // Set the source using base64 data
+        
                         if (entry.audio_data) {
                             audio.src = `data:audio/webm;base64,${entry.audio_data}`;
                         }
-
-                        // Add error handling
+        
                         audio.addEventListener('error', (e) => {
                             console.error("Voice note: Audio playback error:", e);
                             const errorMsg = document.createElement("p");
@@ -1947,27 +1976,27 @@ if (filtered.length === 0) {
                             errorMsg.style.fontSize = "0.9em";
                             audioContainer.appendChild(errorMsg);
                         });
-
+        
                         audio.addEventListener('loadstart', () => {
-                            console.log("Voice note: Audio loading started for:", entry.audio_path);
+                            console.log("Voice note: Audio loading started");
                         });
-
+        
                         audioContainer.appendChild(audio);
                         wrapper.appendChild(audioContainer);
                     }
-
+        
                     wrapper.appendChild(title);
                     wrapper.appendChild(time);
-                    if (!wrapper.classList.contains('locked-note')) {
-                        // Audio is already appended above
-                    }
                     wrapper.appendChild(delBtn);
                     list.appendChild(wrapper);
                 });
+        
             } catch (err) {
+                console.error(err);
                 list.innerHTML = "<p>Error loading recordings.</p>";
             }
         }
+        
 
         async function deleteRecording(entryId) {
             if (confirm('Delete this recording?')) {
