@@ -103,7 +103,7 @@ button, .clickable, input[type="checkbox"], select, input[type="datetime-local"]
 .username-display {
     background: rgba(255, 255, 255, 0.95);
     color: #333;
-    padding: 8px 16px;
+    padding: 4px 53px;
     border-radius: 20px;
     font-size: 14px;
     font-weight: 500;
@@ -277,7 +277,7 @@ main {
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    margin-left: 71rem;
+    margin-left: 55rem;
     transition: transform 0.2s, outline 0.2s;
     padding: 8px;
     border-radius: 4px;
