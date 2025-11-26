@@ -71,40 +71,58 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    const usernameDisplay = document.querySelector(".username-display");
+    const profileBtn = document.getElementById("profileBtn");
+
+    async function loadUserDetails() {
+        if (!usernameDisplay) return;
+        try {
+            const { username } = await api.get(`/auth/user/${userId}`);
+            usernameDisplay.textContent = username;
+            if (profileBtn) {
+                profileBtn.setAttribute("aria-label", `Profile menu for ${username}`);
+                profileBtn.setAttribute("title", username);
+            }
+        } catch (error) {
+            console.error("Failed to load user details", error);
+            usernameDisplay.textContent = "User";
+        }
+    }
+
+    loadUserDetails();
+
     let moodChartInstance = null;
 
     // Dark Mode
     const darkModeToggle = document.getElementById('darkModeToggle');
     const body = document.body;
+    const rootElement = document.documentElement;
     const isDarkMode = localStorage.getItem('darkMode') === 'true';
+    const applyThemeState = (isDark) => {
+        rootElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        if (darkModeToggle) {
+            darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+        }
+        // Change logo based on theme
+        const logoImg = document.querySelector('.sidebar .logo img');
+        if (logoImg) {
+            logoImg.src = isDark ? '/static/assets/whiteloge.png' : '/static/assets/logo.png';
+        }
+    };
+
     if (isDarkMode) {
         body.classList.add('dark-mode');
-        darkModeToggle.textContent = '☀️';
     }
+    applyThemeState(isDarkMode);
 
-    // Search functionality
-    const searchBar = document.getElementById('searchBar');
-    let searchTimeout;
-    searchBar.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            const query = e.target.value.toLowerCase().trim();
-            if (query) {
-                performSearch(query);
-            } else {
-                // Reload current page content
-                const currentPage = document.querySelector('.sidebar nav ul li.active').getAttribute('data-page');
-                loadPageContent(currentPage);
-            }
-        }, 300);
-    });
-
-    darkModeToggle.addEventListener('click', () => {
-        body.classList.toggle('dark-mode');
-        const isDark = body.classList.contains('dark-mode');
-        localStorage.setItem('darkMode', isDark);
-        darkModeToggle.textContent = isDark ? '☀️' : '🌙';
-    });
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            const isDark = body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            applyThemeState(isDark);
+        });
+    }
 
 
     // --- Navigation ---
@@ -171,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function exportJournal() {
         try {
             const entries = await api.get(`/entries/user/${userId}`);
-            const textEntries = entries.filter(e => e.type === 'text');
+            const textEntries = entries.filter(e => e.type === 'text' || e.type === 'drawing');
 
             // Initialize jsPDF
             const { jsPDF } = window.jspdf;
@@ -294,12 +312,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Add content
                 doc.setFontSize(11);
-                const contentLines = doc.splitTextToSize(entry.content, 170);
-                const linesAdded = doc.text(contentLines, 20, yPosition);
+                let contentToProcess = entry.content;
 
-                // Calculate space used by content
-                const contentHeight = contentLines.length * 5;
-                yPosition += contentHeight + 15;
+                // Handle drawing entries
+                if (entry.type === 'drawing') {
+                    const drawingDataMatch = entry.content.match(/\[Drawing Data\]\n(.+)/);
+                    if (drawingDataMatch) {
+                        // Add text content first (if any)
+                        const textContent = entry.content.replace(/\[Drawing Data\]\n.+/, '').trim();
+                        if (textContent) {
+                            const textLines = doc.splitTextToSize(textContent, 170);
+                            doc.text(textLines, 20, yPosition);
+                            const textHeight = textLines.length * 5;
+                            yPosition += textHeight + 10;
+                        }
+
+                        // Add drawing image
+                        try {
+                            const img = new Image();
+                            img.src = drawingDataMatch[1];
+
+                            await new Promise((resolve) => {
+                                img.onload = resolve;
+                            });
+
+                            // Calculate dimensions to fit in PDF
+                            const maxWidth = 170;
+                            const maxHeight = 100;
+                            let imgWidth = img.width;
+                            let imgHeight = img.height;
+
+                            if (imgWidth > maxWidth) {
+                                imgHeight = (imgHeight * maxWidth) / imgWidth;
+                                imgWidth = maxWidth;
+                            }
+
+                            if (imgHeight > maxHeight) {
+                                imgWidth = (imgWidth * maxHeight) / imgHeight;
+                                imgHeight = maxHeight;
+                            }
+
+                            // Check if we need a new page
+                            if (yPosition + imgHeight > 250) {
+                                doc.addPage();
+                                currentPage++;
+                                yPosition = 40;
+                            }
+
+                            doc.addImage(img, 'JPEG', 20, yPosition, imgWidth, imgHeight);
+                            yPosition += imgHeight + 15;
+
+                            // Add label for drawing
+                            doc.setFontSize(10);
+                            doc.setTextColor(100, 100, 100);
+                            doc.text('🎨 Drawing Entry', 20, yPosition);
+                            yPosition += 10;
+                        } catch (error) {
+                            console.error('Error adding drawing to PDF:', error);
+                            doc.text('[Drawing could not be loaded]', 20, yPosition);
+                            yPosition += 10;
+                        }
+                    } else {
+                        const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                        const linesAdded = doc.text(contentLines, 20, yPosition);
+                        const contentHeight = contentLines.length * 5;
+                        yPosition += contentHeight + 15;
+                    }
+                } else {
+                    // Regular text entry
+                    const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                    const linesAdded = doc.text(contentLines, 20, yPosition);
+                    const contentHeight = contentLines.length * 5;
+                    yPosition += contentHeight + 15;
+                }
 
                 // Add images if they exist
                 if (entry.images && entry.images.length > 0) {
@@ -468,12 +553,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Add content with proper formatting
             doc.setFontSize(11);
-            const contentLines = doc.splitTextToSize(entry.content, 170);
-            doc.text(contentLines, 20, yPosition);
+            let contentToProcess = entry.content;
 
-            // Calculate new y position after content
-            const contentHeight = contentLines.length * 5;
-            yPosition += contentHeight + 20;
+            // Handle drawing entries
+            if (entry.type === 'drawing') {
+                const drawingDataMatch = entry.content.match(/\[Drawing Data\]\n(.+)/);
+                if (drawingDataMatch) {
+                    // Add text content first (if any)
+                    const textContent = entry.content.replace(/\[Drawing Data\]\n.+/, '').trim();
+                    if (textContent) {
+                        const textLines = doc.splitTextToSize(textContent, 170);
+                        doc.text(textLines, 20, yPosition);
+                        const textHeight = textLines.length * 5;
+                        yPosition += textHeight + 10;
+                    }
+
+                    // Add drawing image
+                    try {
+                        const img = new Image();
+                        img.src = drawingDataMatch[1];
+
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                        });
+
+                        // Calculate dimensions to fit in PDF
+                        const maxWidth = 170;
+                        const maxHeight = 120;
+                        let imgWidth = img.width;
+                        let imgHeight = img.height;
+
+                        if (imgWidth > maxWidth) {
+                            imgHeight = (imgHeight * maxWidth) / imgWidth;
+                            imgWidth = maxWidth;
+                        }
+
+                        if (imgHeight > maxHeight) {
+                            imgWidth = (imgWidth * maxHeight) / imgHeight;
+                            imgHeight = maxHeight;
+                        }
+
+                        // Check if we need a new page
+                        if (yPosition + imgHeight > 270) {
+                            doc.addPage();
+                            yPosition = 50;
+                        }
+
+                        doc.addImage(img, 'JPEG', 20, yPosition, imgWidth, imgHeight);
+                        yPosition += imgHeight + 15;
+
+                        // Add label for drawing
+                        doc.setFontSize(10);
+                        doc.setTextColor(100, 100, 100);
+                        doc.text('🎨 Drawing Entry', 20, yPosition);
+                        yPosition += 10;
+                    } catch (error) {
+                        console.error('Error adding drawing to PDF:', error);
+                        doc.text('[Drawing could not be loaded]', 20, yPosition);
+                        yPosition += 10;
+                    }
+                } else {
+                    const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                    doc.text(contentLines, 20, yPosition);
+                    const contentHeight = contentLines.length * 5;
+                    yPosition += contentHeight + 20;
+                }
+            } else {
+                // Regular text entry
+                const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                doc.text(contentLines, 20, yPosition);
+                const contentHeight = contentLines.length * 5;
+                yPosition += contentHeight + 20;
+            }
 
             // Add images if they exist
             if (entry.images && entry.images.length > 0) {
@@ -551,62 +702,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Search Function ---
-    async function performSearch(query) {
-        try {
-            const entries = await api.get(`/entries/user/${userId}`);
-            const filteredEntries = entries.filter(entry =>
-                entry.title.toLowerCase().includes(query) ||
-                entry.content.toLowerCase().includes(query) ||
-                (entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(query)))
-            );
-
-            // Display search results
-            const container = document.getElementById("journalContainer") || content;
-            container.innerHTML = `<h3>🔍 Search Results for "${query}"</h3>`;
-
-            if (filteredEntries.length === 0) {
-                container.innerHTML += '<p>No entries found matching your search.</p>';
-                return;
-            }
-
-            filteredEntries.forEach(entry => {
-                const div = document.createElement("div");
-                div.classList.add("journal-entry");
-                div.dataset.entryId = entry.id;
-
-                const previewText = getContentPreview(entry.content);
-                div.innerHTML = `
-                    <div class="entry-header">
-                        <h3>${entry.title}</h3>
-                        <time>${formatDateIST(entry.created_at)}</time>
-                    </div>
-                    <div class="entry-content">
-                        <p class="content-preview">${previewText}</p>
-                    </div>
-                    <div class="entry-footer">
-                        <span class="mood-tag">${entry.mood || "Neutral"}</span>
-                        ${entry.tags ? entry.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}
-                    </div>`;
-
-                container.appendChild(div);
-            });
-
-            // Add click handlers for search results
-            container.addEventListener('click', (e) => {
-                if (e.target.closest('.journal-entry')) {
-                    const entryId = e.target.closest('.journal-entry').dataset.entryId;
-                    const entry = filteredEntries.find(e => e.id == entryId);
-                    if (entry) {
-                        showJournalEntryModal(entry.title, entry.content, entry.mood, 'default', entry.created_at);
-                    }
-                }
-            });
-
-        } catch (error) {
-            console.error('Search failed:', error);
-        }
-    }
 
     // --- Page Loader ---
     function showLoader() {
@@ -740,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             titleColor: '#fff',
                             bodyColor: '#fff',
                             callbacks: {
-                                label: function(context) {
+                                label: function (context) {
                                     const label = context.label || '';
                                     const value = context.parsed;
                                     const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -903,6 +998,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalEntries = entries.length;
             const todayCount = todayEntries.length;
 
+            const textEntries = entries.filter(e => e.type === 'text');
+            const drawingEntries = entries.filter(e => e.type === 'drawing');
+
             statsEl.innerHTML = `
                 <div class="journal-stats-card">
                     <div class="stat-item">
@@ -914,8 +1012,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="stat-label">Today</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">${entries.filter(e => e.type === 'text').length}</span>
-                        <span class="stat-label">Journal Entries</span>
+                        <span class="stat-number">${textEntries.length}</span>
+                        <span class="stat-label">Text Entries</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${drawingEntries.length}</span>
+                        <span class="stat-label">Drawing Entries</span>
                     </div>
                 </div>
             `;
@@ -934,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
             day: "numeric"
         });
 
-                content.innerHTML = `
+        content.innerHTML = `
                 <div class="journal-header centered-header">
                     <h2>📖 Journal</h2>
                 </div>
@@ -968,11 +1070,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- Writing area always available ---
                 if (true) {
                     const writeBox = document.createElement("div");
-                                                            writeBox.className = "journal-writing-area";
-                                                            writeBox.innerHTML = `
+                    writeBox.className = "journal-writing-area";
+                    writeBox.innerHTML = `
                                     <div class="writing-header">
                                         <div class="writing-prompt" id="writingPrompt">What's on your mind today?</div>
-                                        <button id="generatePrompt" class="generate-prompt-btn">🎲 Generate Writing Prompt</button>
+                                        <div class="mode-toggle-container">
+                                            <button id="modeToggle" class="mode-toggle-btn" aria-label="Toggle between text and drawing mode">
+                                                <span class="mode-icon">✏️</span>
+                                                <span class="mode-text">Text Mode</span>
+                                            </button>
+                                            <button id="generatePrompt" class="generate-prompt-btn">🎲 Generate Writing Prompt</button>
+                                        </div>
                                     </div>
 
                                                                     <div class="writing-body">
@@ -1015,7 +1123,37 @@ document.addEventListener('DOMContentLoaded', () => {
                                                                                 </div>
                                                                             </div>
                                                                             <input id="journalTitle" placeholder="Give your entry a title..." />
-                                                                            <textarea id="journalEntry" placeholder="Start writing your journal entry here..."></textarea>
+
+                                                                            <!-- Drawing Tools Panel -->
+                                                                            <div id="drawingTools" class="drawing-tools" style="display: none;">
+                                                                                <div class="drawing-tool-group">
+                                                                                    <button id="brushTool" class="drawing-tool active" title="Brush Tool" aria-label="Select brush tool">
+                                                                                        <span class="tool-icon">🖌️</span>
+                                                                                    </button>
+                                                                                    <button id="eraserTool" class="drawing-tool" title="Eraser Tool" aria-label="Select eraser tool">
+                                                                                        <span class="tool-icon">🧽</span>
+                                                                                    </button>
+                                                                                </div>
+                                                                                <div class="drawing-tool-group">
+                                                                                    <label for="brushColor" class="tool-label">Color:</label>
+                                                                                    <input type="color" id="brushColor" value="#000000" title="Choose brush color" aria-label="Choose brush color">
+                                                                                </div>
+                                                                                <div class="drawing-tool-group">
+                                                                                    <label for="brushSize" class="tool-label">Size:</label>
+                                                                                    <input type="range" id="brushSize" min="1" max="50" value="5" title="Adjust brush size" aria-label="Adjust brush size">
+                                                                                    <span id="brushSizeValue" class="size-value">5px</span>
+                                                                                </div>
+                                                                                <div class="drawing-tool-group">
+                                                                                    <button id="clearCanvas" class="drawing-tool secondary" title="Clear canvas" aria-label="Clear all drawings">
+                                                                                        <span class="tool-icon">🗑️</span>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div class="content-container">
+                                                                                <textarea id="journalEntry" placeholder="Start writing your journal entry here..."></textarea>
+                                                                                <canvas id="drawingCanvas" class="drawing-canvas" style="display: none;" width="800" height="600" aria-label="Drawing canvas for journal entry"></canvas>
+                                                                            </div>
 
                                                                             <div class="writing-meta-row">
                                                                                 <input id="journalTags" placeholder="Add tags (comma separated): work, personal, goals..." />
@@ -1160,6 +1298,248 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
+                    // --- Drawing Mode Functionality ---
+                    let isDrawingMode = localStorage.getItem('journalDrawingMode') === 'true';
+                    let currentTool = 'brush';
+                    let brushSize = parseInt(localStorage.getItem('journalBrushSize')) || 5;
+                    let brushColor = localStorage.getItem('journalBrushColor') || '#000000';
+
+                    const modeToggle = document.getElementById('modeToggle');
+                    const modeIcon = modeToggle.querySelector('.mode-icon');
+                    const modeText = modeToggle.querySelector('.mode-text');
+                    const drawingTools = document.getElementById('drawingTools');
+                    const journalEntry = document.getElementById('journalEntry');
+                    const drawingCanvas = document.getElementById('drawingCanvas');
+                    const brushTool = document.getElementById('brushTool');
+                    const eraserTool = document.getElementById('eraserTool');
+                    const brushColorPicker = document.getElementById('brushColor');
+                    const brushSizeSlider = document.getElementById('brushSize');
+                    const brushSizeValue = document.getElementById('brushSizeValue');
+                    const clearCanvasBtn = document.getElementById('clearCanvas');
+
+                    const ctx = drawingCanvas.getContext('2d');
+                    let isDrawing = false;
+                    let lastX = 0;
+                    let lastY = 0;
+
+                    // Initialize UI with saved values
+                    function initializeDrawingUI() {
+                        modeToggle.classList.toggle('drawing-mode', isDrawingMode);
+                        modeIcon.textContent = isDrawingMode ? '🎨' : '✏️';
+                        modeText.textContent = isDrawingMode ? 'Drawing Mode' : 'Text Mode';
+                        drawingTools.style.display = isDrawingMode ? 'flex' : 'none';
+                        journalEntry.style.display = isDrawingMode ? 'none' : 'block';
+                        drawingCanvas.style.display = isDrawingMode ? 'block' : 'none';
+
+                        brushColorPicker.value = brushColor;
+                        brushSizeSlider.value = brushSize;
+                        brushSizeValue.textContent = brushSize + 'px';
+
+                        if (isDrawingMode) {
+                            initCanvas();
+                            loadDrawingData();
+                        }
+                    }
+
+                    // Initialize the UI
+                    initializeDrawingUI();
+
+                    // Load saved drawing data
+                    function loadDrawingData() {
+                        const savedData = localStorage.getItem('journalDrawingData');
+                        if (savedData) {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                                ctx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
+                            };
+                            img.src = savedData;
+                        }
+                    }
+
+                    // Save current drawing data
+                    function saveDrawingData() {
+                        if (isDrawingMode) {
+                            const dataURL = drawingCanvas.toDataURL('image/png');
+                            localStorage.setItem('journalDrawingData', dataURL);
+                        }
+                    }
+
+                    // Initialize canvas
+                    function initCanvas() {
+                        const rect = drawingCanvas.getBoundingClientRect();
+                        drawingCanvas.width = rect.width * window.devicePixelRatio;
+                        drawingCanvas.height = rect.height * window.devicePixelRatio;
+                        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                        drawingCanvas.style.width = rect.width + 'px';
+                        drawingCanvas.style.height = rect.height + 'px';
+
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+                        ctx.strokeStyle = brushColor;
+                        ctx.lineWidth = brushSize;
+                        ctx.globalCompositeOperation = 'source-over';
+                    }
+
+                    // Load saved drawing data
+                    function loadDrawingData() {
+                        const savedData = localStorage.getItem('journalDrawingData');
+                        if (savedData) {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, 0, 0);
+                            };
+                            img.src = savedData;
+                        }
+                    }
+
+                    // Save drawing data
+                    function saveDrawingData() {
+                        const dataURL = drawingCanvas.toDataURL();
+                        localStorage.setItem('journalDrawingData', dataURL);
+                    }
+
+                    // Update mode UI
+                    function updateModeUI() {
+                        if (isDrawingMode) {
+                            modeIcon.textContent = '🎨';
+                            modeText.textContent = 'Drawing Mode';
+                            modeToggle.classList.add('drawing-mode');
+                            drawingTools.style.display = 'flex';
+                            journalEntry.style.display = 'none';
+                            drawingCanvas.style.display = 'block';
+                            initCanvas();
+                            loadDrawingData();
+                        } else {
+                            modeIcon.textContent = '✏️';
+                            modeText.textContent = 'Text Mode';
+                            modeToggle.classList.remove('drawing-mode');
+                            drawingTools.style.display = 'none';
+                            journalEntry.style.display = 'block';
+                            drawingCanvas.style.display = 'none';
+                            saveDrawingData();
+                        }
+                    }
+
+                    // Mode toggle event listener
+                    modeToggle.addEventListener('click', () => {
+                        isDrawingMode = !isDrawingMode;
+                        localStorage.setItem('journalDrawingMode', isDrawingMode);
+                        updateModeUI();
+                    });
+
+                    // Tool selection
+                    brushTool.addEventListener('click', () => {
+                        currentTool = 'brush';
+                        brushTool.classList.add('active');
+                        eraserTool.classList.remove('active');
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = brushColor;
+                    });
+
+                    eraserTool.addEventListener('click', () => {
+                        currentTool = 'eraser';
+                        eraserTool.classList.add('active');
+                        brushTool.classList.remove('active');
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.strokeStyle = 'rgba(0,0,0,1)';
+                    });
+
+                    // Color picker
+                    brushColorPicker.addEventListener('change', (e) => {
+                        brushColor = e.target.value;
+                        if (currentTool === 'brush') {
+                            ctx.strokeStyle = brushColor;
+                        }
+                    });
+
+                    // Brush size slider
+                    brushSizeSlider.addEventListener('input', (e) => {
+                        brushSize = parseInt(e.target.value);
+                        brushSizeValue.textContent = brushSize + 'px';
+                        ctx.lineWidth = brushSize;
+                    });
+
+                    // Clear canvas
+                    clearCanvasBtn.addEventListener('click', () => {
+                        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                        localStorage.removeItem('journalDrawingData');
+                        showNotification('Canvas cleared!', 'info');
+                    });
+
+                    // Drawing functions
+                    function startDrawing(e) {
+                        isDrawing = true;
+                        const rect = drawingCanvas.getBoundingClientRect();
+                        lastX = e.clientX - rect.left;
+                        lastY = e.clientY - rect.top;
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                    }
+
+                    function draw(e) {
+                        if (!isDrawing) return;
+                        const rect = drawingCanvas.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+
+                        lastX = x;
+                        lastY = y;
+                    }
+
+                    function stopDrawing() {
+                        if (isDrawing) {
+                            isDrawing = false;
+                            saveDrawingData();
+                        }
+                    }
+
+                    // Touch events for mobile
+                    drawingCanvas.addEventListener('mousedown', startDrawing);
+                    drawingCanvas.addEventListener('mousemove', draw);
+                    drawingCanvas.addEventListener('mouseup', stopDrawing);
+                    drawingCanvas.addEventListener('mouseout', stopDrawing);
+
+                    drawingCanvas.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        const mouseEvent = new MouseEvent('mousedown', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                        });
+                        drawingCanvas.dispatchEvent(mouseEvent);
+                    });
+
+                    drawingCanvas.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        const mouseEvent = new MouseEvent('mousemove', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                        });
+                        drawingCanvas.dispatchEvent(mouseEvent);
+                    });
+
+                    drawingCanvas.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        const mouseEvent = new MouseEvent('mouseup');
+                        drawingCanvas.dispatchEvent(mouseEvent);
+                    });
+
+                    // Initialize mode on page load
+                    updateModeUI();
+
+                    // Handle window resize for canvas
+                    window.addEventListener('resize', () => {
+                        if (isDrawingMode) {
+                            initCanvas();
+                            loadDrawingData();
+                        }
+                    });
+
                     // Font selector logic
                     fontSelect.addEventListener("change", (e) => {
                         const font = e.target.value;
@@ -1192,7 +1572,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         journalEntry.style.padding = '24px';
                         journalEntry.style.lineHeight = '1.6';
 
-                        switch(theme) {
+                        switch (theme) {
                             case 'default':
                                 journalEntry.style.background = 'repeating-linear-gradient(white, white 28px, rgba(139, 115, 85, 0.08) 29px)';
                                 journalEntry.style.borderColor = 'rgba(139, 115, 85, 0.4)';
@@ -1246,7 +1626,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     function applyFont(font) {
                         // Only change font family, don't affect other styling
-                        switch(font) {
+                        switch (font) {
                             case 'default':
                                 journalEntry.style.fontFamily = 'Poppins, sans-serif';
                                 journalEntry.style.fontWeight = '400';
@@ -1288,94 +1668,117 @@ document.addEventListener('DOMContentLoaded', () => {
                         journalEntry.style.borderColor = isDarkBg ? 'rgba(255,255,255,0.3)' : 'rgba(139, 115, 85, 0.3)';
                     }
 
-document.getElementById("saveJournal").addEventListener("click", async () => {
-    const title = journalTitle.value || "Untitled";
-    const contentText = journalEntry.value;
-    const tags = document.getElementById("journalTags").value;
-    const mood = document.getElementById("moodSelect").value;
-    const isCapsule = document.getElementById("isCapsule").checked;
-    const capsuleDate = document.getElementById("capsuleDate").value;
+                    document.getElementById("saveJournal").addEventListener("click", async () => {
+                        const title = journalTitle.value || "Untitled";
+                        const contentText = journalEntry.value;
+                        const tags = document.getElementById("journalTags").value;
+                        const mood = document.getElementById("moodSelect").value;
+                        const isCapsule = document.getElementById("isCapsule").checked;
+                        const capsuleDate = document.getElementById("capsuleDate").value;
 
-    if (!contentText.trim()) {
-        showNotification('Please write something!', 'error');
-        return;
-    }
+                        // Check if we have content in either text or drawing mode
+                        const hasTextContent = contentText.trim();
+                        const hasDrawingContent = isDrawingMode && localStorage.getItem('journalDrawingData');
 
-    if (isCapsule && !capsuleDate) {
-        showNotification('Please set a capsule open date!', 'error');
-        return;
-    }
+                        if (!hasTextContent && !hasDrawingContent) {
+                            showNotification('Please write something or draw something!', 'error');
+                            return;
+                        }
 
-    // Show loading state
-    const saveBtn = document.getElementById("saveJournal");
-    const originalText = saveBtn.textContent;
-    saveBtn.textContent = "💾 Saving...";
-    saveBtn.disabled = true;
+                        if (isCapsule && !capsuleDate) {
+                            showNotification('Please set a capsule open date!', 'error');
+                            return;
+                        }
 
-    const payload = {
-        user_id: userId,
-        title,
-        content: contentText,
-        tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        mood,
-        is_capsule: isCapsule,
-        capsule_open_date: isCapsule ? capsuleDate : null
-    };
+                        // Show loading state
+                        const saveBtn = document.getElementById("saveJournal");
+                        const originalText = saveBtn.textContent;
+                        saveBtn.textContent = "💾 Saving...";
+                        saveBtn.disabled = true;
 
-    try {
-        await api.post("/entries/add", payload);
+                        // Prepare content based on mode
+                        let finalContent = contentText;
+                        let entryType = 'text';
 
-        // Clear draft after successful save
-        localStorage.removeItem('journalDraft');
+                        if (isDrawingMode) {
+                            entryType = 'drawing';
+                            const drawingData = localStorage.getItem('journalDrawingData');
+                            if (drawingData) {
+                                // Include both text and drawing data if both exist
+                                if (hasTextContent) {
+                                    finalContent = contentText + '\n\n[Drawing Data]\n' + drawingData;
+                                } else {
+                                    finalContent = '[Drawing Data]\n' + drawingData;
+                                }
+                            }
+                        }
 
-        const msg = document.getElementById("saveMsg");
-        msg.classList.remove("hidden");
+                        const payload = {
+                            user_id: userId,
+                            title,
+                            content: finalContent,
+                            type: entryType,
+                            tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+                            mood,
+                            is_capsule: isCapsule,
+                            capsule_open_date: isCapsule ? capsuleDate : null
+                        };
 
-        // Update the mood garden with the new entry
-        try {
-            await api.post("/garden/", {
-                user_id: userId,
-                mood: mood,
-                intensity: 1.0
-            });
+                        try {
+                            await api.post("/entries/add", payload);
 
-            // If mood garden is currently open, refresh it to show new flower
-            if (moodGardenInstance) {
-                await moodGardenInstance.loadGarden();
-                showNotification('🌸 New flower bloomed in your garden!', 'success');
-            }
-        } catch (gardenErr) {
-            console.error("Garden update failed:", gardenErr);
-        }
-// Generate compassionate response tools based on user's selected mood
-try {
-    const aiResponse = await api.post("/entries/generate-prompts", { content: contentText, mood });
+                            // Clear draft and drawing data after successful save
+                            localStorage.removeItem('journalDraft');
+                            localStorage.removeItem('journalDrawingData');
 
-    // Use the user's explicitly selected mood instead of AI-detected emotion
-    // This ensures we respect the user's self-identification of their emotional state
-    const userSelectedMood = mood.toLowerCase();
+                            const msg = document.getElementById("saveMsg");
+                            msg.classList.remove("hidden");
 
-    // Get compassionate tools based on user's chosen mood
-    const compassionateTools = await api.get(`/entries/compassionate-tools?emotion=${userSelectedMood}`);
+                            // Update the mood garden with the new entry
+                            try {
+                                await api.post("/garden/", {
+                                    user_id: userId,
+                                    mood: mood,
+                                    intensity: 1.0
+                                });
 
-    showCompassionateResponseModal(aiResponse.messages, userSelectedMood, aiResponse.is_low_mood, compassionateTools);
-} catch (err) {
-    console.error("Compassionate response failed:", err);
-    // Fallback to basic notification
-    showNotification('Entry saved successfully! 🌱', 'success');
-}
+                                // If mood garden is currently open, refresh it to show new flower
+                                if (moodGardenInstance) {
+                                    await moodGardenInstance.loadGarden();
+                                    showNotification('🌸 New flower bloomed in your garden!', 'success');
+                                }
+                            } catch (gardenErr) {
+                                console.error("Garden update failed:", gardenErr);
+                            }
+                            // Generate compassionate response tools based on user's selected mood
+                            try {
+                                const aiResponse = await api.post("/entries/generate-prompts", { content: contentText, mood });
 
-        setTimeout(() => {
-            msg.classList.add("hidden");
-            loadJournal(); // Reload to see new entry
-        }, 2000);
-    } catch (error) {
-        showNotification('Failed to save entry. Please try again.', 'error');
-    } finally {
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
-    }
-});
+                                // Use the user's explicitly selected mood instead of AI-detected emotion
+                                // This ensures we respect the user's self-identification of their emotional state
+                                const userSelectedMood = mood.toLowerCase();
+
+                                // Get compassionate tools based on user's chosen mood
+                                const compassionateTools = await api.get(`/entries/compassionate-tools?emotion=${userSelectedMood}`);
+
+                                showCompassionateResponseModal(aiResponse.messages, userSelectedMood, aiResponse.is_low_mood, compassionateTools);
+                            } catch (err) {
+                                console.error("Compassionate response failed:", err);
+                                // Fallback to basic notification
+                                showNotification('Entry saved successfully! 🌱', 'success');
+                            }
+
+                            setTimeout(() => {
+                                msg.classList.add("hidden");
+                                loadJournal(); // Reload to see new entry
+                            }, 2000);
+                        } catch (error) {
+                            showNotification('Failed to save entry. Please try again.', 'error');
+                        } finally {
+                            saveBtn.textContent = originalText;
+                            saveBtn.disabled = false;
+                        }
+                    });
                 } else {
                     const notice = document.createElement("p");
                     notice.style.color = "gray";
@@ -1384,67 +1787,95 @@ try {
                     container.appendChild(document.createElement("hr"));
                 }
 
-               // --- Show all entries sorted by date (newest first) ---
-const filtered = entries
-    .filter(e => e.type === 'text')
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                // --- Show all entries sorted by date (newest first) ---
+                const filtered = entries
+                    .filter(e => e.type === 'text')
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-if (filtered.length === 0) {
-    const noData = document.createElement("p");
-    noData.innerText = "No entries for this day.";
-    container.appendChild(noData);
-} else {
-    filtered.forEach(entry => {
-        const div = document.createElement("div");
-        div.classList.add("journal-entry");
-        div.dataset.entryId = entry.id;
+                if (filtered.length === 0) {
+                    const noData = document.createElement("p");
+                    noData.innerText = "No entries for this day.";
+                    container.appendChild(noData);
+                } else {
+                    filtered.forEach(entry => {
+                        const div = document.createElement("div");
+                        div.classList.add("journal-entry");
+                        div.dataset.entryId = entry.id;
 
-        const entryDateStr = toIST(new Date(entry.created_at)).toLocaleDateString("en-CA");
-        const isToday = entryDateStr === todayStr;
-        const now = toIST(new Date());
-        const isLocked = entry.is_capsule && entry.capsule_open_date && toIST(new Date(entry.capsule_open_date)) > now;
+                        const entryDateStr = toIST(new Date(entry.created_at)).toLocaleDateString("en-CA");
+                        const isToday = entryDateStr === todayStr;
+                        const now = toIST(new Date());
+                        const isLocked = entry.is_capsule && entry.capsule_open_date && toIST(new Date(entry.capsule_open_date)) > now;
 
-        let actionsHTML = "";
-        if (!isLocked) {
-            actionsHTML = `<div class="entry-actions">
+                        let actionsHTML = "";
+                        if (!isLocked) {
+                            actionsHTML = `<div class="entry-actions">
                               <button class="btn-export-entry" data-entry-id="${entry.id}">📄 Export</button>
                               ${isToday ? `<button class="btn-delete-entry" data-entry-id="${entry.id}">🗑️ Delete</button>` : ''}
                            </div>`;
-        }
+                        }
 
-        if (entry.type === "text") {
-            if (isLocked) {
-                div.innerHTML = `
-                  <div class="entry-header">
-                    <h3>🔒 Time Capsule</h3>
-                    <time>Opens on ${formatDateTimeIST(entry.capsule_open_date)}</time>
-                  </div>
-                  <p style="color: gray;">This capsule is locked until the specified date.</p>
-                  <div class="entry-footer">
-                    <span class="mood-tag">${entry.mood || "Neutral"}</span>
-                  </div>`;
-            } else {
-                    const previewText = getContentPreview(entry.content);
-                    const currentTheme = localStorage.getItem('journalTheme') || 'default';
-                    div.innerHTML = `
-                      <div class="entry-clickable" data-entry-id="${entry.id}" data-title="${entry.title}" data-content="${entry.content.replace(/"/g, '"')}" data-mood="${entry.mood || 'Neutral'}" data-theme="${currentTheme}" data-created="${entry.created_at}">
-                        <div class="entry-header">
-                          <h3>${entry.title}</h3>
-                          <time>${formatTimeIST(entry.created_at)}</time>
-                        </div>
-                        <div class="entry-content">
-                          <p class="content-preview">${previewText}</p>
-                        </div>
-                        <div class="entry-footer">
-                          <span class="mood-tag">${entry.mood || "Neutral"}</span>
-                        </div>
-                      </div>
-                      <div class="entry-actions">
-                        ${actionsHTML}
-                      </div>`;
-                }
-        } else if (entry.type === "voice") {
-            div.innerHTML = `
+                        if (entry.type === "text" || entry.type === "drawing") {
+                            if (isLocked) {
+                                div.innerHTML = `
+                   <div class="entry-header">
+                     <h3>🔒 Time Capsule</h3>
+                     <time>Opens on ${formatDateTimeIST(entry.capsule_open_date)}</time>
+                   </div>
+                   <p style="color: gray;">This capsule is locked until the specified date.</p>
+                   <div class="entry-footer">
+                     <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                     ${entry.type === "drawing" ? '<span class="entry-type-tag">🎨 Drawing</span>' : ''}
+                   </div>`;
+                             } else {
+                                 const previewText = getContentPreview(entry.content);
+                                 const currentTheme = localStorage.getItem('journalTheme') || 'default';
+                                 const isDrawingEntry = entry.type === "drawing";
+                                 const hasDrawingData = entry.content && entry.content.includes('[Drawing Data]');
+                                 div.innerHTML = `
+                       <div class="entry-clickable" data-entry-id="${entry.id}" data-title="${entry.title}" data-content="${entry.content.replace(/"/g, '"')}" data-mood="${entry.mood || 'Neutral'}" data-theme="${currentTheme}" data-created="${entry.created_at}" data-type="${entry.type}">
+                         <div class="entry-header">
+                           <h3>${entry.title} ${isDrawingEntry ? '🎨' : ''}</h3>
+                           <time>${formatTimeIST(entry.created_at)}</time>
+                         </div>
+                         <div class="entry-content">
+                           ${hasDrawingData ? '<div class="drawing-preview"><canvas class="entry-drawing-canvas"></canvas></div>' : ''}
+                           <p class="content-preview">${previewText}</p>
+                         </div>
+                         <div class="entry-footer">
+                           <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                           ${isDrawingEntry ? '<span class="entry-type-tag">🎨 Drawing</span>' : ''}
+                         </div>
+                       </div>
+                       <div class="entry-actions">
+                         ${actionsHTML}
+                       </div>`;
+
+                                 // Load drawing data for drawing entries
+                                 if (hasDrawingData && isDrawingEntry) {
+                                     const drawingDataMatch = entry.content.match(/\[Drawing Data\]\n(.+)/);
+                                     if (drawingDataMatch) {
+                                         const canvas = div.querySelector('.entry-drawing-canvas');
+                                         if (canvas) {
+                                             const ctx = canvas.getContext('2d');
+                                             const img = new Image();
+                                             img.onload = () => {
+                                                 canvas.width = Math.min(img.width, 300);
+                                                 canvas.height = Math.min(img.height, 200);
+                                                 const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                                                 const scaledWidth = img.width * scale;
+                                                 const scaledHeight = img.height * scale;
+                                                 const x = (canvas.width - scaledWidth) / 2;
+                                                 const y = (canvas.height - scaledHeight) / 2;
+                                                 ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                                             };
+                                             img.src = drawingDataMatch[1];
+                                         }
+                                     }
+                                 }
+                             }
+                         } else if (entry.type === "voice") {
+                            div.innerHTML = `
               <div class="entry-header">
                 <h3>${entry.title}</h3>
                 <time>${formatTimeIST(entry.created_at)}</time>
@@ -1456,10 +1887,10 @@ if (filtered.length === 0) {
                 <span class="mood-tag">${entry.mood || "Neutral"}</span>
                 ${actionsHTML}
               </div>`;
-        }
-        container.appendChild(div);
-    });
-}
+                        }
+                        container.appendChild(div);
+                    });
+                }
 
                 // --- Add event listener for all buttons and entry clicks ---
                 container.addEventListener('click', async (e) => {
@@ -1495,7 +1926,7 @@ if (filtered.length === 0) {
                         const theme = clickableElement.dataset.theme;
                         const createdDate = clickableElement.dataset.created;
 
-                        showJournalEntryModal(title, content, mood, theme, createdDate);
+                        showJournalEntryModal(title, content, mood, theme, createdDate, clickableElement.dataset.type || 'text');
                     }
                 });
 
@@ -1646,7 +2077,7 @@ if (filtered.length === 0) {
 
         let audioContext, analyser, source, dataArray, animationId;
         let mediaRecorder, audioChunks = [], isRecording = false, lastBlob = null;
-        
+
         const recordBtn = document.getElementById("recordBtn");
         const pauseBtn = document.getElementById("pauseBtn");
         const saveBtn = document.getElementById("saveBtn");
@@ -1905,7 +2336,7 @@ if (filtered.length === 0) {
             resetVoiceRecorder();
             voiceStatus.textContent = "🗑️ Recording deleted.";
         });
-        
+
         // --- Time Capsule Logic ---
         const modal = document.getElementById("timeCapsuleModal");
         const saveCapsuleBtn = document.getElementById("saveCapsuleBtn");
@@ -1947,7 +2378,7 @@ if (filtered.length === 0) {
                 voiceStatus.textContent = "❌ Failed to save capsule.";
             }
         });
-        
+
         function deleteRecording(index) {
             const saved = JSON.parse(localStorage.getItem("voiceNotes") || "[]");
             saved.splice(index, 1);
@@ -1960,22 +2391,25 @@ if (filtered.length === 0) {
             const list = document.getElementById("recordingsList");
             if (!list) return;
             list.innerHTML = "";
+
             try {
                 console.log("Voice note: Fetching entries for user", userId);
                 const entries = await api.get(`/entries/user/${userId}`);
                 console.log("Voice note: Total entries received:", entries.length);
+
                 const voiceEntries = entries.filter(e => e.type === 'voice');
                 console.log("Voice note: Voice entries found:", voiceEntries.length);
-                const now = toIST(new Date());
+
+                const now = new Date();
 
                 if (voiceEntries.length === 0) {
                     list.innerHTML = "<p>No recordings yet.</p>";
                     return;
                 }
 
-                // Sort voice entries by creation date (newest first)
+                // newest first
                 voiceEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
+
                 voiceEntries.forEach(entry => {
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
@@ -1992,13 +2426,41 @@ if (filtered.length === 0) {
                     delBtn.textContent = "🗑 Delete";
                     delBtn.onclick = () => deleteRecording(entry.id);
 
-                    if (entry.is_capsule && entry.capsule_open_date && new Date(entry.capsule_open_date) > now) {
-                        time.innerHTML = `🔒 Locked until ${formatDateTimeIST(entry.capsule_open_date)}`;
-                        wrapper.classList.add('locked-note');
-                    } else {
+                    // -------------------------------
+                    // ⭐ NEW TIME CAPSULE LOGIC ⭐
+                    // -------------------------------
+                    if (entry.is_capsule && entry.capsule_open_date) {
+                        const unlockDate = new Date(entry.capsule_open_date);
+
+                        if (now < unlockDate) {
+                            // Capsule still locked
+                            time.innerHTML = `🔒 Locked until ${formatDateTimeIST(unlockDate)}`;
+                            wrapper.classList.add("locked-note");
+                        } else {
+                            // Capsule unlocked → show audio
+                            time.textContent = `✨ Unlocked! (Recorded: ${formatDateTimeIST(entry.created_at)})`;
+
+                            const audioContainer = document.createElement("div");
+                            audioContainer.classList.add("audio-container");
+
+                            const audio = document.createElement("audio");
+                            audio.controls = true;
+                            audio.preload = "metadata";
+
+                            if (entry.audio_data) {
+                                audio.src = `data:audio/webm;base64,${entry.audio_data}`;
+                            }
+
+                            audioContainer.appendChild(audio);
+                            wrapper.appendChild(audioContainer);
+                        }
+                    }
+                    // -------------------------------
+                    // Normal (non-capsule) voice notes
+                    // -------------------------------
+                    else {
                         time.textContent = formatDateTimeIST(entry.created_at);
 
-                        // Create audio element using base64 data
                         const audioContainer = document.createElement("div");
                         audioContainer.classList.add("audio-container");
 
@@ -2006,12 +2468,10 @@ if (filtered.length === 0) {
                         audio.controls = true;
                         audio.preload = "metadata";
 
-                        // Set the source using base64 data
                         if (entry.audio_data) {
                             audio.src = `data:audio/webm;base64,${entry.audio_data}`;
                         }
 
-                        // Add error handling
                         audio.addEventListener('error', (e) => {
                             console.error("Voice note: Audio playback error:", e);
                             const errorMsg = document.createElement("p");
@@ -2022,7 +2482,7 @@ if (filtered.length === 0) {
                         });
 
                         audio.addEventListener('loadstart', () => {
-                            console.log("Voice note: Audio loading started for:", entry.audio_path);
+                            console.log("Voice note: Audio loading started");
                         });
 
                         audioContainer.appendChild(audio);
@@ -2031,16 +2491,16 @@ if (filtered.length === 0) {
 
                     wrapper.appendChild(title);
                     wrapper.appendChild(time);
-                    if (!wrapper.classList.contains('locked-note')) {
-                        // Audio is already appended above
-                    }
                     wrapper.appendChild(delBtn);
                     list.appendChild(wrapper);
                 });
+
             } catch (err) {
+                console.error(err);
                 list.innerHTML = "<p>Error loading recordings.</p>";
             }
         }
+
 
         async function deleteRecording(entryId) {
             if (confirm('Delete this recording?')) {
@@ -2053,9 +2513,6 @@ if (filtered.length === 0) {
                 }
             }
         }
-        
-        // Render recordings once
-        renderRecordings(); // Initial render
     }
 
     // ================= TODO LIST =================
@@ -3143,22 +3600,46 @@ if (filtered.length === 0) {
     }
 
     // --- Journal Entry Modal ---
-    function showJournalEntryModal(title, content, mood, theme, createdDate) {
+    function showJournalEntryModal(title, content, mood, theme, createdDate, entryType = 'text') {
         const modal = document.createElement('div');
         modal.className = 'modal journal-entry-modal';
+        const isDrawingEntry = entryType === 'drawing';
+        const hasDrawingData = content && content.includes('[Drawing Data]');
+
+        let contentHTML = '';
+        if (isDrawingEntry && hasDrawingData) {
+            const drawingDataMatch = content.match(/\[Drawing Data\]\n(.+)/);
+            const textContent = content.replace(/\[Drawing Data\]\n.+/, '').trim();
+
+            if (textContent) {
+                contentHTML += textContent.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('');
+                contentHTML += '<br>';
+            }
+
+            if (drawingDataMatch) {
+                contentHTML += `<div class="modal-drawing-container">
+                    <img src="${drawingDataMatch[1]}" alt="Drawing" class="modal-drawing-image" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+                    <p style="text-align: center; color: #666; font-size: 0.9em; margin-top: 10px;">🎨 Drawing Entry</p>
+                </div>`;
+            }
+        } else {
+            contentHTML = content.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('');
+        }
+
         modal.innerHTML = `
             <div class="modal-content journal-modal-content" style="max-width: 700px;">
                 <div class="modal-header">
-                    <h2>${title || "Untitled"}</h2>
+                    <h2>${title || "Untitled"} ${isDrawingEntry ? '🎨' : ''}</h2>
                     <button id="closeEntryModal" class="close-modal-btn">×</button>
                 </div>
                 <div class="modal-body">
                     <div class="entry-metadata">
                         <span class="mood-tag">${getMoodEmoji(mood)} ${mood}</span>
                         <time class="entry-date">${formatDateTimeIST(createdDate)}</time>
+                        ${isDrawingEntry ? '<span class="entry-type-tag">🎨 Drawing</span>' : ''}
                     </div>
                     <div class="entry-full-content" id="entryFullContent">
-                        ${content.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')}
+                        ${contentHTML}
                     </div>
                 </div>
             </div>
@@ -3198,7 +3679,7 @@ if (filtered.length === 0) {
         contentArea.style.padding = '20px';
         contentArea.style.lineHeight = '1.6';
 
-        switch(theme) {
+        switch (theme) {
             case 'default':
                 contentArea.style.background = 'repeating-linear-gradient(white, white 32px, rgba(139, 115, 85, 0.08) 33px)';
                 contentArea.style.borderColor = 'rgba(139, 115, 85, 0.4)';

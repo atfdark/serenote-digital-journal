@@ -30,3 +30,11 @@ def login():
     if user and check_password_hash(user.password, data["password"]):
         return jsonify({"message": "Login successful", "userId": user.id}), 200
     return jsonify({"message": "Invalid username or password"}), 401 # Unauthorized
+
+
+@auth_routes.route("/user/<int:user_id>", methods=["GET"])
+def get_user(user_id):
+    user = db_session.query(User).filter_by(id=user_id).first()
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+    return jsonify({"userId": user.id, "username": user.username}), 200
