@@ -2081,13 +2081,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             const audio = document.createElement("audio");
                             audio.controls = true;
                             audio.preload = "metadata";
-
-                            // Lazy load audio data when needed
+    
+                            // Load audio data immediately for proper duration display
                             let audioLoaded = false;
                             const loadAudioData = async () => {
                                 if (audioLoaded) return;
                                 try {
-                                    console.log("Voice note: Lazy loading audio for entry", entry.id);
+                                    console.log("Voice note: Loading audio for entry", entry.id);
                                     console.log("Voice note: Making API call to /entries/voice/audio/" + entry.id);
                                     const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
                                     console.log("Voice note: API response received:", audioResponse);
@@ -2105,9 +2105,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     audioContainer.innerHTML = '<p style="color: red;">⚠️ Audio playback not available</p>';
                                 }
                             };
-
-                            // Load audio when user interacts with it
-                            audio.addEventListener('play', loadAudioData);
+    
+                            // Load audio data immediately when the element is created
+                            loadAudioData();
                             audio.addEventListener('canplay', () => console.log("Voice note: Audio can play"));
 
                             audioContainer.appendChild(audio);
@@ -2127,12 +2127,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         audio.controls = true;
                         audio.preload = "metadata";
 
-                        // Lazy load audio data when needed
+                        // Load audio data immediately for proper duration display
                         let audioLoaded = false;
                         const loadAudioData = async () => {
                             if (audioLoaded) return;
                             try {
-                                console.log("Voice note: Lazy loading audio for entry", entry.id);
+                                console.log("Voice note: Loading audio for entry", entry.id);
                                 const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
                                 const dataUrl = `data:${audioResponse.mime_type};base64,${audioResponse.audio_data}`;
                                 audio.src = dataUrl;
@@ -2148,8 +2148,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         };
 
-                        // Load audio when user interacts with it
-                        audio.addEventListener('play', loadAudioData);
+                        // Load audio data immediately when the element is created
+                        loadAudioData();
                         audio.addEventListener('canplay', () => console.log("Voice note: Audio can play"));
 
                         audioContainer.appendChild(audio);
