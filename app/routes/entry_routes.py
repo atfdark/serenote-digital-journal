@@ -55,10 +55,17 @@ def add_text_entry():
 @login_required
 @entry_routes.route("/user/<int:user_id>", methods=["GET"])
 def get_entries(user_id):
+    """Legacy endpoint - returns all entries with audio data (use specific endpoints for better performance)"""
     print(f"DEBUG: get_entries called by user {current_user.id} for user_id {user_id}")
+    print(f"DEBUG: current_user.id type: {type(current_user.id)}, user_id type: {type(user_id)}")
     if user_id != current_user.id:
+        print(f"DEBUG: Authorization failed: {user_id} != {current_user.id}")
         return jsonify({"message": "Unauthorized"}), 403
+    print(f"DEBUG: Authorization passed")
     entries = db_session.query(Entry).filter_by(user_id=current_user.id).order_by(Entry.created_at.desc()).all()
+    print(f"DEBUG: Found {len(entries)} total entries for user {current_user.id}")
+    voice_entries = [e for e in entries if e.type == 'voice']
+    print(f"DEBUG: Found {len(voice_entries)} voice entries")
     result = []
     for entry in entries:
         if entry.created_at is None:
@@ -71,8 +78,193 @@ def get_entries(user_id):
         }
         if entry.audio_data:
             entry_data["audio_data"] = base64.b64encode(entry.audio_data).decode('utf-8')
+            print(f"DEBUG: Entry {entry.id} has audio_data, length: {len(entry_data['audio_data'])}")
         result.append(entry_data)
+    print(f"DEBUG: Returning {len(result)} entries")
     return jsonify(result)
+
+@login_required
+@entry_routes.route("/text/<int:user_id>", methods=["GET"])
+def get_text_entries(user_id):
+    """Optimized endpoint for text entries only - no audio data"""
+    if user_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    # Get pagination parameters
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 50))
+    offset = (page - 1) * limit
+
+    # Query only text entries
+    entries = db_session.query(Entry).filter_by(
+        user_id=current_user.id,
+        type='text'
+    ).order_by(Entry.created_at.desc()).offset(offset).limit(limit).all()
+
+    result = []
+    for entry in entries:
+        if entry.created_at is None:
+            continue
+        entry_data = {
+            "id": entry.id,
+            "title": entry.title,
+            "content": entry.content,
+            "mood": entry.mood,
+            "type": entry.type,
+            "is_capsule": entry.is_capsule,
+            "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
+            "created_at": entry.created_at.isoformat(),
+            "tags": entry.tags.split(',') if entry.tags else []
+        }
+        result.append(entry_data)
+
+    # Get total count for pagination
+    total_count = db_session.query(Entry).filter_by(
+        user_id=current_user.id,
+        type='text'
+    ).count()
+
+    return jsonify({
+        "entries": result,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total_count,
+            "pages": (total_count + limit - 1) // limit
+        }
+    })
+
+@login_required
+@entry_routes.route("/voice/metadata/<int:user_id>", methods=["GET"])
+def get_voice_entries_metadata(user_id):
+    """Returns voice entries metadata without audio data for better performance"""
+    if user_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    # Get pagination parameters
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 50))
+    offset = (page - 1) * limit
+
+    # Query voice entries without audio_data
+    entries = db_session.query(
+        Entry.id, Entry.title, Entry.mood, Entry.type, Entry.is_capsule,
+        Entry.capsule_open_date, Entry.created_at, Entry.audio_path
+    ).filter_by(
+        user_id=current_user.id,
+        type='voice'
+    ).order_by(Entry.created_at.desc()).offset(offset).limit(limit).all()
+
+    result = []
+    for entry in entries:
+        entry_data = {
+            "id": entry.id,
+            "title": entry.title or "Voice Note",
+            "mood": entry.mood,
+            "type": entry.type,
+            "audio_path": entry.audio_path,
+            "is_capsule": entry.is_capsule,
+            "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
+            "created_at": entry.created_at.isoformat()
+        }
+        result.append(entry_data)
+
+    # Get total count for pagination
+    total_count = db_session.query(Entry).filter_by(
+        user_id=current_user.id,
+        type='voice'
+    ).count()
+
+    return jsonify({
+        "entries": result,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total_count,
+            "pages": (total_count + limit - 1) // limit
+        }
+    })
+
+@login_required
+@entry_routes.route("/voice/audio/<int:entry_id>", methods=["GET"])
+def get_voice_audio(entry_id):
+    """Lazy load audio data for a specific voice entry"""
+    entry = db_session.query(Entry).filter_by(id=entry_id, user_id=current_user.id).first()
+    if not entry:
+        return jsonify({"message": "Entry not found"}), 404
+
+    if entry.type != 'voice' or not entry.audio_data:
+        return jsonify({"message": "No audio data available"}), 404
+
+    # Determine MIME type based on audio_path or default to webm
+    mime_type = "audio/webm"
+    if entry.audio_path:
+        if entry.audio_path.endswith('.mp4') or entry.audio_path.endswith('.m4a'):
+            mime_type = "audio/mp4"
+        elif entry.audio_path.endswith('.wav'):
+            mime_type = "audio/wav"
+        elif entry.audio_path.endswith('.ogg'):
+            mime_type = "audio/ogg"
+
+    return jsonify({
+        "audio_data": base64.b64encode(entry.audio_data).decode('utf-8'),
+        "mime_type": mime_type
+    })
+
+@login_required
+@entry_routes.route("/summary/<int:user_id>", methods=["GET"])
+def get_entries_summary(user_id):
+    """Combined endpoint for entry statistics and recent entries"""
+    if user_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    # Get counts by type
+    text_count = db_session.query(Entry).filter_by(user_id=current_user.id, type='text').count()
+    voice_count = db_session.query(Entry).filter_by(user_id=current_user.id, type='voice').count()
+    capsule_count = db_session.query(Entry).filter_by(user_id=current_user.id, is_capsule=True).count()
+
+    # Get recent entries (last 5 text entries for dashboard)
+    recent_entries = db_session.query(Entry).filter_by(
+        user_id=current_user.id,
+        type='text'
+    ).order_by(Entry.created_at.desc()).limit(5).all()
+
+    recent_data = []
+    for entry in recent_entries:
+        recent_data.append({
+            "id": entry.id,
+            "title": entry.title,
+            "created_at": entry.created_at.isoformat(),
+            "mood": entry.mood
+        })
+
+    # Get today's entry count
+    print(f"DEBUG: About to execute query with func.date, today={datetime.now(IST).date()}")
+    today = datetime.now(IST).date()
+    try:
+        today_count = db_session.query(Entry).filter(
+            Entry.user_id == current_user.id,
+            Entry.type == 'text',
+            func.date(Entry.created_at) == today
+        ).count()
+        print(f"DEBUG: Query executed successfully, today_count={today_count}")
+    except NameError as e:
+        print(f"DEBUG: NameError caught: {e}")
+        today_count = 0
+    except Exception as e:
+        print(f"DEBUG: Other error in query: {e}")
+        today_count = 0
+
+    return jsonify({
+        "stats": {
+            "total_entries": text_count + voice_count,
+            "text_entries": text_count,
+            "voice_entries": voice_count,
+            "time_capsules": capsule_count,
+            "today_entries": today_count
+        },
+        "recent_entries": recent_data
+    })
 
 @login_required
 @entry_routes.route("/delete/<int:entry_id>", methods=["DELETE"])

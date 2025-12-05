@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- API Helper ---
     const api = {
         async get(endpoint) {
-            const res = await fetch(endpoint);
+            const res = await fetch(endpoint, { credentials: 'include' });
             if (!res.ok) throw new Error(`Failed to fetch data`);
             return res.json();
         },
@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const options = {
                 method: 'POST',
                 body: isFormData ? body : JSON.stringify(body),
+                credentials: 'include'
             };
             if (!isFormData) {
                 options.headers = { 'Content-Type': 'application/json' };
@@ -44,7 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(endpoint, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
+                credentials: 'include'
             });
 
             if (!res.ok) {
@@ -54,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return res.json();
         },
         async delete(endpoint) {
-            const res = await fetch(endpoint, { method: 'DELETE' });
+            const res = await fetch(endpoint, { method: 'DELETE', credentials: 'include' });
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({ message: "Failed to delete" }));
                 throw new Error(errorData.message);
@@ -76,8 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadUserDetails() {
         if (!usernameDisplay) return;
+
+        // Check cache first
+        const cachedProfile = cache.get('userProfile');
+        if (cachedProfile) {
+            usernameDisplay.textContent = cachedProfile.username;
+            if (profileBtn) {
+                profileBtn.setAttribute("aria-label", `Profile menu for ${cachedProfile.username}`);
+                profileBtn.setAttribute("title", cachedProfile.username);
+            }
+            return;
+        }
+
         try {
             const { username } = await api.get(`/auth/user/${userId}`);
+            cache.set('userProfile', { username });
             usernameDisplay.textContent = username;
             if (profileBtn) {
                 profileBtn.setAttribute("aria-label", `Profile menu for ${username}`);
@@ -92,6 +107,33 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserDetails();
 
     let moodChartInstance = null;
+
+    // Client-side caching for performance
+    const cache = {
+        userProfile: null,
+        dashboardSummary: null,
+        journalStats: null,
+        cacheTimeout: 5 * 60 * 1000, // 5 minutes
+
+        set: function(key, data) {
+            this[key] = {
+                data: data,
+                timestamp: Date.now()
+            };
+        },
+
+        get: function(key) {
+            const cached = this[key];
+            if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+                return cached.data;
+            }
+            return null;
+        },
+
+        clear: function(key) {
+            this[key] = null;
+        }
+    };
 
     // Dark Mode
     const darkModeToggle = document.getElementById('darkModeToggle');
@@ -188,8 +230,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Export Functions ---
     async function exportJournal() {
         try {
-            const entries = await api.get(`/entries/user/${userId}`);
-            const textEntries = entries.filter(e => e.type === 'text');
+            // Use optimized text-only endpoint for export
+            const data = await api.get(`/entries/text/${userId}?limit=1000`);
+            const textEntries = data.entries;
 
             // Initialize jsPDF
             const { jsPDF } = window.jspdf;
@@ -397,8 +440,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function exportSingleEntry(entryId) {
         try {
-            const entries = await api.get(`/entries/user/${userId}`);
-            const entry = entries.find(e => e.id == entryId);
+            // For single entry export, we need to get the specific entry
+            // Since we don't have a single entry endpoint, we'll use the text endpoint
+            // and find the entry (this could be optimized further with a dedicated endpoint)
+            const data = await api.get(`/entries/text/${userId}?limit=1000`);
+            const entry = data.entries.find(e => e.id == entryId);
 
             if (!entry) {
                 showNotification('Entry not found', 'error');
@@ -625,13 +671,23 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadRecentEntries() {
         const listEl = document.getElementById('recent-entries-list');
         try {
-            const entries = await api.get(`/entries/user/${userId}`);
+            // Check cache first
+            const cachedSummary = cache.get('dashboardSummary');
+            let summary;
+            if (cachedSummary) {
+                summary = cachedSummary;
+            } else {
+                // Use optimized summary endpoint that includes recent entries
+                summary = await api.get(`/entries/summary/${userId}`);
+                cache.set('dashboardSummary', summary);
+            }
+
             listEl.innerHTML = '';
-            const textEntries = entries.filter(e => e.type === 'text');
-            if (textEntries.length === 0) {
+
+            if (summary.recent_entries.length === 0) {
                 listEl.innerHTML = '<p>No journal entries yet.</p>';
             } else {
-                textEntries.slice(0, 3).forEach(entry => {
+                summary.recent_entries.slice(0, 3).forEach(entry => {
                     const entryEl = document.createElement('div');
                     entryEl.className = 'recent-entry';
                     entryEl.innerHTML = `
@@ -861,26 +917,29 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadJournalStats() {
         const statsEl = document.getElementById('journalStats');
         try {
-            const entries = await api.get(`/entries/user/${userId}`);
-            const todayStr = toIST(new Date()).toLocaleDateString("en-CA");
-            const todayEntries = entries.filter(e => toIST(new Date(e.created_at)).toLocaleDateString("en-CA") === todayStr);
-            const totalEntries = entries.length;
-            const todayCount = todayEntries.length;
-
-            const textEntries = entries.filter(e => e.type === 'text');
+            // Check cache first
+            const cachedStats = cache.get('journalStats');
+            let summary;
+            if (cachedStats) {
+                summary = cachedStats;
+            } else {
+                // Use optimized summary endpoint for stats
+                summary = await api.get(`/entries/summary/${userId}`);
+                cache.set('journalStats', summary);
+            }
 
             statsEl.innerHTML = `
                 <div class="journal-stats-card">
                     <div class="stat-item">
-                        <span class="stat-number">${totalEntries}</span>
+                        <span class="stat-number">${summary.stats.total_entries}</span>
                         <span class="stat-label">Total Entries</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">${todayCount}</span>
+                        <span class="stat-number">${summary.stats.today_entries}</span>
                         <span class="stat-label">Today</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">${textEntries.length}</span>
+                        <span class="stat-number">${summary.stats.text_entries}</span>
                         <span class="stat-label">Text Entries</span>
                     </div>
                 </div>
@@ -925,11 +984,13 @@ document.addEventListener('DOMContentLoaded', () => {
             exportJournal();
         });
 
-        fetch(`/entries/user/${userId}`)
+        // Use optimized text-only endpoint
+        fetch(`/entries/text/${userId}`)
             .then(res => res.json())
-            .then(entries => {
+            .then(data => {
                 const container = document.getElementById("journalContainer");
                 container.innerHTML = "";
+                const entries = data.entries; // Extract entries from paginated response
 
                 // --- Writing area always available ---
                 if (true) {
@@ -1308,6 +1369,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Clear draft after successful save
                             localStorage.removeItem('journalDraft');
 
+                            // Clear relevant caches since data has changed
+                            cache.clear('dashboardSummary');
+                            cache.clear('journalStats');
+
                             const msg = document.getElementById("saveMsg");
                             msg.classList.remove("hidden");
 
@@ -1453,6 +1518,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 button.disabled = true;
                                 button.textContent = "Deleting...";
                                 await api.delete(`/entries/delete/${entryId}`);
+
+                                // Clear relevant caches since data has changed
+                                cache.clear('dashboardSummary');
+                                cache.clear('journalStats');
+
                                 const entryElement = document.querySelector(`.journal-entry[data-entry-id='${entryId}']`);
                                 if (entryElement) {
                                     entryElement.style.opacity = '0';
@@ -1489,7 +1559,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================= VOICE NOTES =================
     let voiceInterval;
 
-    function loadVoiceNotes() {
+    async function loadVoiceNotes() {
+        console.log("Voice note: loadVoiceNotes called");
         if (voiceInterval) clearInterval(voiceInterval);
 
         // Check browser support
@@ -1547,17 +1618,24 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
-        // Load voice stats
-        loadVoiceStats();
+        // Load voice stats and recordings asynchronously
+        await loadVoiceStats();
+        await renderRecordings();
 
         // Load voice stats
         async function loadVoiceStats() {
             const statsEl = document.getElementById('voiceStats');
             try {
-                const entries = await api.get(`/entries/user/${userId}`);
-                const voiceEntries = entries.filter(e => e.type === 'voice');
-                const totalVoice = voiceEntries.length;
-                const capsules = voiceEntries.filter(e => e.is_capsule).length;
+                console.log("Voice note: Loading voice stats for user", userId);
+                // Use optimized summary endpoint
+                const summary = await api.get(`/entries/summary/${userId}`);
+                console.log("Voice note: Stats - voice entries:", summary.stats.voice_entries);
+                const totalVoice = summary.stats.voice_entries;
+                const capsules = summary.stats.time_capsules;
+
+                // For days recorded, we still need to fetch metadata (could be optimized further)
+                const voiceData = await api.get(`/entries/voice/metadata/${userId}?limit=1000`);
+                const daysRecorded = new Set(voiceData.entries.map(e => new Date(e.created_at).toDateString())).size;
 
                 statsEl.innerHTML = `
                     <div class="voice-stats-card">
@@ -1570,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="stat-label">Time Capsules</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number">${new Set(voiceEntries.map(e => new Date(e.created_at).toDateString())).size}</span>
+                            <span class="stat-number">${daysRecorded}</span>
                             <span class="stat-label">Days Recorded</span>
                         </div>
                     </div>
@@ -1706,11 +1784,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Try different MIME types for better compatibility
                     const mimeTypes = [
-                        'audio/webm;codecs=opus',
+                        'audio/ogg;codecs=opus',
                         'audio/webm',
                         'audio/mp4',
-                        'audio/wav',
-                        'audio/ogg;codecs=opus'
+                        'audio/webm;codecs=opus'
                     ];
 
                     let selectedMimeType = 'audio/webm';
@@ -1941,15 +2018,21 @@ document.addEventListener('DOMContentLoaded', () => {
         async function renderRecordings() {
             const list = document.getElementById("recordingsList");
             if (!list) return;
-            list.innerHTML = "";
+            list.innerHTML = '<div class="loading">Loading voice notes...</div>';
 
             try {
-                console.log("Voice note: Fetching entries for user", userId);
-                const entries = await api.get(`/entries/user/${userId}`);
-                console.log("Voice note: Total entries received:", entries.length);
-
-                const voiceEntries = entries.filter(e => e.type === 'voice');
-                console.log("Voice note: Voice entries found:", voiceEntries.length);
+                console.log("Voice note: Fetching voice entries metadata for user", userId);
+                const response = await fetch(`/entries/voice/metadata/${userId}`);
+                console.log("Voice note: Fetch response status:", response.status);
+                if (!response.ok) {
+                    console.error("Voice note: Fetch failed with status:", response.status);
+                    const errorText = await response.text();
+                    console.error("Voice note: Error response:", errorText);
+                    throw new Error(`Failed to fetch data`);
+                }
+                const data = await response.json();
+                const voiceEntries = data.entries;
+                console.log("Voice note: Voice entries received:", voiceEntries.length);
 
                 const now = new Date();
 
@@ -1962,6 +2045,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 voiceEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                 voiceEntries.forEach(entry => {
+                    console.log("Voice note: Processing entry:", entry.id, "title:", entry.title);
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
 
@@ -1998,9 +2082,26 @@ document.addEventListener('DOMContentLoaded', () => {
                             audio.controls = true;
                             audio.preload = "metadata";
 
-                            if (entry.audio_data) {
-                                audio.src = `data:audio/webm;base64,${entry.audio_data}`;
-                            }
+                            // Lazy load audio data when needed
+                            let audioLoaded = false;
+                            const loadAudioData = async () => {
+                                if (audioLoaded) return;
+                                try {
+                                    console.log("Voice note: Lazy loading audio for entry", entry.id);
+                                    const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
+                                    const dataUrl = `data:${audioResponse.mime_type};base64,${audioResponse.audio_data}`;
+                                    console.log("Voice note: Setting audio src, dataUrl length:", dataUrl.length);
+                                    audio.src = dataUrl;
+                                    audioLoaded = true;
+                                } catch (error) {
+                                    console.error("Voice note: Failed to load audio data:", error);
+                                    audioContainer.innerHTML = '<p style="color: red;">⚠️ Audio playback not available</p>';
+                                }
+                            };
+
+                            // Load audio when user interacts with it
+                            audio.addEventListener('play', loadAudioData);
+                            audio.addEventListener('canplay', () => console.log("Voice note: Audio can play"));
 
                             audioContainer.appendChild(audio);
                             wrapper.appendChild(audioContainer);
@@ -2019,22 +2120,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         audio.controls = true;
                         audio.preload = "metadata";
 
-                        if (entry.audio_data) {
-                            audio.src = `data:audio/webm;base64,${entry.audio_data}`;
-                        }
+                        // Lazy load audio data when needed
+                        let audioLoaded = false;
+                        const loadAudioData = async () => {
+                            if (audioLoaded) return;
+                            try {
+                                console.log("Voice note: Lazy loading audio for entry", entry.id);
+                                const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
+                                const dataUrl = `data:${audioResponse.mime_type};base64,${audioResponse.audio_data}`;
+                                audio.src = dataUrl;
+                                audioLoaded = true;
+                            } catch (error) {
+                                console.error("Voice note: Failed to load audio data:", error);
+                                const errorMsg = document.createElement("p");
+                                errorMsg.textContent = "⚠️ Audio playback not available";
+                                errorMsg.style.color = "#f44336";
+                                errorMsg.style.fontSize = "0.9em";
+                                audioContainer.innerHTML = '';
+                                audioContainer.appendChild(errorMsg);
+                            }
+                        };
 
-                        audio.addEventListener('error', (e) => {
-                            console.error("Voice note: Audio playback error:", e);
-                            const errorMsg = document.createElement("p");
-                            errorMsg.textContent = "⚠️ Audio playback not supported in this browser";
-                            errorMsg.style.color = "#f44336";
-                            errorMsg.style.fontSize = "0.9em";
-                            audioContainer.appendChild(errorMsg);
-                        });
-
-                        audio.addEventListener('loadstart', () => {
-                            console.log("Voice note: Audio loading started");
-                        });
+                        // Load audio when user interacts with it
+                        audio.addEventListener('play', loadAudioData);
+                        audio.addEventListener('canplay', () => console.log("Voice note: Audio can play"));
 
                         audioContainer.appendChild(audio);
                         wrapper.appendChild(audioContainer);
