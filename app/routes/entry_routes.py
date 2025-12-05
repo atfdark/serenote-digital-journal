@@ -53,7 +53,7 @@ def add_text_entry():
     return jsonify({"message": "Entry saved successfully"}), 201
 
 @login_required
-@entry_routes.route("/entries/user/<int:user_id>", methods=["GET"])
+@entry_routes.route("/user/<int:user_id>", methods=["GET"])
 def get_entries(user_id):
     print(f"DEBUG: get_entries called by user {current_user.id} for user_id {user_id}")
     if user_id != current_user.id:
@@ -152,6 +152,7 @@ def generate_ai_prompts():
     try:
         # Use the user's explicitly selected mood for compassionate responses
         # The AI analysis is still performed for personalized messages, but we respect user's self-identification
+        mood = data.get("mood")
         detected_emotion = mood.lower() if mood else "neutral"
 
         # Now generate appropriate messages based on detected emotion

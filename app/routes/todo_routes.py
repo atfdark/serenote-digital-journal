@@ -9,7 +9,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 todo_routes = Blueprint("todo", __name__)
 
-@todo_routes.route("/todos/user/<int:user_id>", methods=["GET"])
+@todo_routes.route("/user/<int:user_id>", methods=["GET"])
 @login_required
 def get_todos(user_id):
     """Get all todos for a user."""
