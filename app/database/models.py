@@ -22,11 +22,10 @@ class Entry(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     title = Column(String(200))
     content = Column(Text)
-    type = Column(String(50))   # text, voice, or drawing
+    type = Column(String(50))   # text or voice
     mood = Column(String(50))
     audio_path = Column(String(300), nullable=True)
     audio_data = Column(LargeBinary, nullable=True)
-    drawing_data = Column(LargeBinary, nullable=True)  # Store drawing as binary data
     is_capsule = Column(Boolean, default=False)
     capsule_open_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(IST))

@@ -55,6 +55,8 @@ def get_entries(user_id):
     entries = db_session.query(Entry).filter_by(user_id=user_id).order_by(Entry.created_at.desc()).all()
     result = []
     for entry in entries:
+        if entry.created_at is None:
+            continue
         entry_data = {
             "id": entry.id, "title": entry.title, "content": entry.content,
             "mood": entry.mood, "type": entry.type, "audio_path": entry.audio_path,
@@ -63,8 +65,6 @@ def get_entries(user_id):
         }
         if entry.audio_data:
             entry_data["audio_data"] = base64.b64encode(entry.audio_data).decode('utf-8')
-        if entry.drawing_data:
-            entry_data["drawing_data"] = base64.b64encode(entry.drawing_data).decode('utf-8')
         result.append(entry_data)
     return jsonify(result)
 
@@ -130,68 +130,6 @@ def save_voice_note():
         return jsonify({"message": "Failed to save voice note"}), 500
 
     return jsonify({"message": "Voice note saved successfully"})
-
-@entry_routes.route("/drawing", methods=["POST"])
-def save_drawing_entry():
-    """Saves a new drawing-based journal entry."""
-    print("Drawing entry: Received POST request to /entries/drawing")
-
-    user_id = request.form.get("user_id")
-    title = request.form.get("title", "")
-    mood = request.form.get("mood", "Neutral")
-    is_capsule = request.form.get("is_capsule", "false").lower() == "true"
-    capsule_open_date = request.form.get("capsule_open_date")
-
-    print(f"Drawing entry: user_id={user_id}, title={title}, mood={mood}, is_capsule={is_capsule}")
-
-    if not user_id:
-        print("Drawing entry: Missing user_id")
-        return jsonify({"message": "Missing required data"}), 400
-
-    # Check if drawing data is provided
-    if 'drawing' not in request.files:
-        print("Drawing entry: No drawing file in request.files")
-        return jsonify({"message": "No drawing data provided"}), 400
-
-    drawing_file = request.files['drawing']
-    if not drawing_file.filename:
-        print("Drawing entry: Empty drawing filename")
-        return jsonify({"message": "Empty drawing data"}), 400
-
-    # Read the drawing data
-    try:
-        drawing_data = drawing_file.read()
-        print(f"Drawing entry: Read drawing data, size={len(drawing_data)} bytes")
-    except Exception as e:
-        print(f"Drawing entry: Error reading drawing file: {e}")
-        return jsonify({"message": "Failed to read drawing data"}), 500
-
-    capsule_date = None
-    if is_capsule and capsule_open_date:
-        try:
-            capsule_date = datetime.fromisoformat(capsule_open_date.replace('Z', '+00:00'))
-        except ValueError:
-            return jsonify({"message": "Invalid capsule open date format"}), 400
-
-    try:
-        entry = Entry(
-            user_id=user_id,
-            title=title,
-            content="",  # No text content for drawing entries
-            type="drawing",
-            mood=mood,
-            drawing_data=drawing_data,
-            is_capsule=is_capsule,
-            capsule_open_date=capsule_date
-        )
-        db_session.add(entry)
-        db_session.commit()
-        print("Drawing entry: Database entry saved successfully")
-    except Exception as e:
-        print(f"Drawing entry: Error saving to database: {e}")
-        return jsonify({"message": "Failed to save drawing entry"}), 500
-
-    return jsonify({"message": "Drawing entry saved successfully"})
 
 @entry_routes.route("/generate-prompts", methods=["POST"])
 def generate_ai_prompts():
