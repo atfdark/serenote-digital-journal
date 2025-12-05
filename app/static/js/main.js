@@ -1553,7 +1553,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Load voice stats
         async function loadVoiceStats() {
             const statsEl = document.getElementById('voiceStats');
-            console.log("DEBUG: Loading voice stats for user:", userId);
             try {
                 const entries = await api.get(`/entries/user/${userId}`);
                 const voiceEntries = entries.filter(e => e.type === 'voice');
@@ -1577,7 +1576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             } catch (error) {
-                console.error("DEBUG: Failed to load voice stats:", error);
+                console.error("Failed to load voice stats:", error);
                 statsEl.innerHTML = '<p>Could not load stats.</p>';
             }
         }

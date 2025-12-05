@@ -30,7 +30,7 @@ def login():
     user = db_session.query(User).filter_by(username=data.get("username")).first()
     if user and check_password_hash(user.password, data["password"]):
         login_user(user)
-        return jsonify({"message": "Login successful"}), 200
+        return jsonify({"message": "Login successful", "userId": user.id}), 200
     return jsonify({"message": "Invalid username or password"}), 401 # Unauthorized
 
 
