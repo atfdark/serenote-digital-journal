@@ -9,10 +9,12 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 todo_routes = Blueprint("todo", __name__)
 
-@todo_routes.route("/todos", methods=["GET"])
+@todo_routes.route("/todos/user/<int:user_id>", methods=["GET"])
 @login_required
-def get_todos():
+def get_todos(user_id):
     """Get all todos for a user."""
+    if user_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
     todos = db_session.query(Todo).filter_by(user_id=current_user.id).order_by(Todo.created_at.desc()).all()
     result = [{
         "id": todo.id,
@@ -108,10 +110,12 @@ def delete_todo(todo_id):
     db_session.commit()
     return jsonify({"message": "Todo deleted successfully"}), 200
 
-@todo_routes.route("/stats", methods=["GET"])
+@todo_routes.route("/stats/<int:user_id>", methods=["GET"])
 @login_required
-def get_todo_stats():
+def get_todo_stats(user_id):
     """Get todo statistics for a user."""
+    if user_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
     todos = db_session.query(Todo).filter_by(user_id=current_user.id).all()
 
     total = len(todos)

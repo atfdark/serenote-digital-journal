@@ -53,8 +53,11 @@ def add_text_entry():
     return jsonify({"message": "Entry saved successfully"}), 201
 
 @login_required
-@entry_routes.route("/entries", methods=["GET"])
-def get_entries():
+@entry_routes.route("/entries/user/<int:user_id>", methods=["GET"])
+def get_entries(user_id):
+    print(f"DEBUG: get_entries called by user {current_user.id} for user_id {user_id}")
+    if user_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
     entries = db_session.query(Entry).filter_by(user_id=current_user.id).order_by(Entry.created_at.desc()).all()
     result = []
     for entry in entries:
