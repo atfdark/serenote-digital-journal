@@ -2088,13 +2088,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (audioLoaded) return;
                                 try {
                                     console.log("Voice note: Lazy loading audio for entry", entry.id);
+                                    console.log("Voice note: Making API call to /entries/voice/audio/" + entry.id);
                                     const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
+                                    console.log("Voice note: API response received:", audioResponse);
+                                    console.log("Voice note: MIME type:", audioResponse.mime_type);
+                                    console.log("Voice note: Audio data length:", audioResponse.audio_data ? audioResponse.audio_data.length : 'null');
                                     const dataUrl = `data:${audioResponse.mime_type};base64,${audioResponse.audio_data}`;
                                     console.log("Voice note: Setting audio src, dataUrl length:", dataUrl.length);
+                                    console.log("Voice note: Data URL starts with:", dataUrl.substring(0, 50));
                                     audio.src = dataUrl;
                                     audioLoaded = true;
+                                    console.log("Voice note: Audio src set successfully");
                                 } catch (error) {
                                     console.error("Voice note: Failed to load audio data:", error);
+                                    console.error("Voice note: Error details:", error.message);
                                     audioContainer.innerHTML = '<p style="color: red;">⚠️ Audio playback not available</p>';
                                 }
                             };

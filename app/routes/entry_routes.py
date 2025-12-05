@@ -5,6 +5,7 @@ from flask_login import current_user, login_required
 from app.database.db import db_session
 from app.database.models import Entry
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
 import openai
 import base64
 
@@ -189,11 +190,15 @@ def get_voice_entries_metadata(user_id):
 @entry_routes.route("/voice/audio/<int:entry_id>", methods=["GET"])
 def get_voice_audio(entry_id):
     """Lazy load audio data for a specific voice entry"""
+    print(f"DEBUG: get_voice_audio called for entry_id={entry_id}, user_id={current_user.id}")
     entry = db_session.query(Entry).filter_by(id=entry_id, user_id=current_user.id).first()
     if not entry:
+        print(f"DEBUG: Entry {entry_id} not found for user {current_user.id}")
         return jsonify({"message": "Entry not found"}), 404
 
+    print(f"DEBUG: Entry found - type: {entry.type}, has audio_data: {entry.audio_data is not None}")
     if entry.type != 'voice' or not entry.audio_data:
+        print(f"DEBUG: No audio data available - type: {entry.type}, audio_data exists: {entry.audio_data is not None}")
         return jsonify({"message": "No audio data available"}), 404
 
     # Determine MIME type based on audio_path or default to webm
@@ -206,8 +211,10 @@ def get_voice_audio(entry_id):
         elif entry.audio_path.endswith('.ogg'):
             mime_type = "audio/ogg"
 
+    audio_data_b64 = base64.b64encode(entry.audio_data).decode('utf-8')
+    print(f"DEBUG: Returning audio data - MIME type: {mime_type}, data length: {len(audio_data_b64)}")
     return jsonify({
-        "audio_data": base64.b64encode(entry.audio_data).decode('utf-8'),
+        "audio_data": audio_data_b64,
         "mime_type": mime_type
     })
 
@@ -239,21 +246,12 @@ def get_entries_summary(user_id):
         })
 
     # Get today's entry count
-    print(f"DEBUG: About to execute query with func.date, today={datetime.now(IST).date()}")
     today = datetime.now(IST).date()
-    try:
-        today_count = db_session.query(Entry).filter(
-            Entry.user_id == current_user.id,
-            Entry.type == 'text',
-            func.date(Entry.created_at) == today
-        ).count()
-        print(f"DEBUG: Query executed successfully, today_count={today_count}")
-    except NameError as e:
-        print(f"DEBUG: NameError caught: {e}")
-        today_count = 0
-    except Exception as e:
-        print(f"DEBUG: Other error in query: {e}")
-        today_count = 0
+    today_count = db_session.query(Entry).filter(
+        Entry.user_id == current_user.id,
+        Entry.type == 'text',
+        func.date(Entry.created_at) == today
+    ).count()
 
     return jsonify({
         "stats": {
