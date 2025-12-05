@@ -3,11 +3,12 @@ from sqlalchemy.orm import relationship
 from .db import Base
 import datetime
 from datetime import timezone, timedelta
+from flask_login import UserMixin
 
 # IST timezone (UTC+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
 
-class User(Base):
+class User(Base, UserMixin):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     username = Column(String(100), unique=True, nullable=False)

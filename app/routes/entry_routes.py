@@ -1,6 +1,7 @@
 # file: app/routes/entry_routes.py (Corrected)
 
 from flask import Blueprint, request, jsonify
+from flask_login import current_user, login_required
 from app.database.db import db_session
 from app.database.models import Entry
 from datetime import datetime, timezone, timedelta
@@ -15,18 +16,19 @@ entry_routes = Blueprint("entry", __name__)
 # Set OpenAI API key (in production, use environment variable)
 openai.api_key = "your-openai-api-key-here"  # Replace with actual key or env var
 
+@login_required
 @entry_routes.route("/add", methods=["POST"])
 def add_text_entry():
     """Adds a new text-based journal entry."""
     data = request.json
-    user_id = data.get("user_id")
+    user_id = current_user.id
     title = data.get("title")
     content = data.get("content")
     mood = data.get("mood", "Neutral")   # 👈 allow mood from frontend
     is_capsule = data.get("is_capsule", False)
     capsule_open_date = data.get("capsule_open_date")
 
-    if not all([user_id, title, content]):
+    if not all([title, content]):
         return jsonify({"message": "Missing required fields"}), 400
 
     from datetime import datetime
@@ -50,9 +52,10 @@ def add_text_entry():
     db_session.commit()
     return jsonify({"message": "Entry saved successfully"}), 201
 
-@entry_routes.route("/user/<int:user_id>", methods=["GET"])
-def get_entries(user_id):
-    entries = db_session.query(Entry).filter_by(user_id=user_id).order_by(Entry.created_at.desc()).all()
+@login_required
+@entry_routes.route("/entries", methods=["GET"])
+def get_entries():
+    entries = db_session.query(Entry).filter_by(user_id=current_user.id).order_by(Entry.created_at.desc()).all()
     result = []
     for entry in entries:
         if entry.created_at is None:
@@ -68,10 +71,11 @@ def get_entries(user_id):
         result.append(entry_data)
     return jsonify(result)
 
+@login_required
 @entry_routes.route("/delete/<int:entry_id>", methods=["DELETE"])
 def delete_entry(entry_id):
     """Deletes an entry by ID."""
-    entry = db_session.query(Entry).filter_by(id=entry_id).first()
+    entry = db_session.query(Entry).filter_by(id=entry_id, user_id=current_user.id).first()
     if not entry:
         return jsonify({"message": "Entry not found"}), 404
 
@@ -79,6 +83,7 @@ def delete_entry(entry_id):
     db_session.commit()
     return jsonify({"message": "Entry deleted successfully"}), 200
 
+@login_required
 @entry_routes.route("/voice", methods=["POST"])
 def save_voice_note():
     print("Voice note: Received POST request to /entries/voice")
@@ -86,15 +91,15 @@ def save_voice_note():
         print("Voice note: No audio file in request.files")
         return jsonify({"message": "No audio file provided"}), 400
 
-    user_id = request.form.get("user_id")
+    user_id = current_user.id
     file = request.files['audio']
     is_capsule = request.form.get("is_capsule", "false").lower() == "true"
     capsule_open_date = request.form.get("capsule_open_date")
 
     print(f"Voice note: user_id={user_id}, file.filename={file.filename}, is_capsule={is_capsule}")
 
-    if not user_id or not file.filename:
-        print("Voice note: Missing user_id or filename")
+    if not file.filename:
+        print("Voice note: Missing filename")
         return jsonify({"message": "Missing required data"}), 400
 
     # Read the audio file data
@@ -131,6 +136,7 @@ def save_voice_note():
 
     return jsonify({"message": "Voice note saved successfully"})
 
+@login_required
 @entry_routes.route("/generate-prompts", methods=["POST"])
 def generate_ai_prompts():
     """Analyze journal content and provide emotion-based quotes/messages."""
@@ -204,6 +210,7 @@ def generate_ai_prompts():
             "is_low_mood": False
         }), 200
 
+@login_required
 @entry_routes.route("/compassionate-tools", methods=["GET"])
 def get_compassionate_tools():
     """Get all compassionate response tools based on emotion."""
