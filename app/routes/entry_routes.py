@@ -1,7 +1,8 @@
 # file: app/routes/entry_routes.py (Corrected)
 
 from flask import Blueprint, request, jsonify
-from app.database.supabase_client import supabase
+from app.database.db import db_session
+from app.database.models import Entry
 from datetime import datetime, timezone, timedelta
 import openai
 import base64
@@ -36,97 +37,44 @@ def add_text_entry():
         except ValueError:
             return jsonify({"message": "Invalid capsule open date format"}), 400
 
-    entry_data = {
-        "user_id": user_id,
-        "title": title,
-        "content": content,
-        "type": "text",
-        "mood": mood,
-        "is_capsule": is_capsule,
-        "capsule_open_date": capsule_date.isoformat() if capsule_date else None
-    }
-    supabase.table('entries').insert(entry_data).execute()
+    new_entry = Entry(
+        user_id=user_id,
+        title=title,
+        content=content,
+        type="text",
+        mood=mood,
+        is_capsule=is_capsule,
+        capsule_open_date=capsule_date
+    )
+    db_session.add(new_entry)
+    db_session.commit()
     return jsonify({"message": "Entry saved successfully"}), 201
 
 @entry_routes.route("/user/<int:user_id>", methods=["GET"])
 def get_entries(user_id):
-    print(f"DEBUG: get_entries called for user_id={user_id}")
-    try:
-        response = supabase.table('entries').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
-        entries = response.data
-        print(f"DEBUG: Found {len(entries)} entries for user {user_id}")
-        result = []
-        for entry in entries:
-            print(f"DEBUG: Processing entry {entry['id']}, type={entry['type']}, has_drawing_data={entry.get('drawing_data') is not None}")
-            entry_data = {
-                "id": entry["id"], "title": entry["title"], "content": entry["content"],
-                "mood": entry["mood"], "type": entry["type"], "audio_path": entry["audio_path"],
-                "is_capsule": entry["is_capsule"], "capsule_open_date": entry["capsule_open_date"],
-                "created_at": entry["created_at"]
-            }
-            # Exclude large binary data from list response to prevent JavaScript innerHTML issues
-            # Binary data will be loaded separately when needed
-            # if entry.get("audio_data"):
-            #     try:
-            #         entry_data["audio_data"] = base64.b64encode(entry["audio_data"]).decode('utf-8')
-            #         print(f"DEBUG: Encoded audio_data for entry {entry['id']}, length={len(entry_data['audio_data'])}")
-            #     except Exception as e:
-            #         print(f"ERROR: Failed to encode audio_data for entry {entry['id']}: {e}")
-            #         entry_data["audio_data"] = None
-            # if entry.get("drawing_data"):
-            #     try:
-            #         entry_data["drawing_data"] = base64.b64encode(entry["drawing_data"]).decode('utf-8')
-            #         print(f"DEBUG: Encoded drawing_data for entry {entry['id']}, length={len(entry_data['drawing_data'])}")
-            #     except Exception as e:
-            #         print(f"ERROR: Failed to encode drawing_data for entry {entry['id']}: {e}")
-            #         entry_data["drawing_data"] = None
-            result.append(entry_data)
-        print(f"DEBUG: Returning {len(result)} entries")
-        return jsonify(result)
-    except Exception as e:
-        print(f"ERROR: Exception in get_entries: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Internal server error"}), 500
-
-@entry_routes.route("/audio/<int:entry_id>", methods=["GET"])
-def get_audio_data(entry_id):
-    """Get audio data for a specific entry."""
-    response = supabase.table('entries').select('*').eq('id', entry_id).execute()
-    entry = response.data[0] if response.data else None
-    if not entry or not entry.get("audio_data"):
-        return jsonify({"message": "Audio not found"}), 404
-
-    try:
-        audio_b64 = base64.b64encode(entry["audio_data"]).decode('utf-8')
-        return jsonify({"audio_data": audio_b64})
-    except Exception as e:
-        print(f"ERROR: Failed to encode audio_data for entry {entry_id}: {e}")
-        return jsonify({"message": "Failed to encode audio"}), 500
-
-@entry_routes.route("/drawing/<int:entry_id>", methods=["GET"])
-def get_drawing_data(entry_id):
-    """Get drawing data for a specific entry."""
-    response = supabase.table('entries').select('*').eq('id', entry_id).execute()
-    entry = response.data[0] if response.data else None
-    if not entry or not entry.get("drawing_data"):
-        return jsonify({"message": "Drawing not found"}), 404
-
-    try:
-        drawing_b64 = base64.b64encode(entry["drawing_data"]).decode('utf-8')
-        return jsonify({"drawing_data": drawing_b64})
-    except Exception as e:
-        print(f"ERROR: Failed to encode drawing_data for entry {entry_id}: {e}")
-        return jsonify({"message": "Failed to encode drawing"}), 500
+    entries = db_session.query(Entry).filter_by(user_id=user_id).order_by(Entry.created_at.desc()).all()
+    result = []
+    for entry in entries:
+        entry_data = {
+            "id": entry.id, "title": entry.title, "content": entry.content,
+            "mood": entry.mood, "type": entry.type, "audio_path": entry.audio_path,
+            "is_capsule": entry.is_capsule, "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
+            "created_at": entry.created_at.isoformat()
+        }
+        if entry.audio_data:
+            entry_data["audio_data"] = base64.b64encode(entry.audio_data).decode('utf-8')
+        result.append(entry_data)
+    return jsonify(result)
 
 @entry_routes.route("/delete/<int:entry_id>", methods=["DELETE"])
 def delete_entry(entry_id):
     """Deletes an entry by ID."""
-    response = supabase.table('entries').select('*').eq('id', entry_id).execute()
-    if not response.data:
+    entry = db_session.query(Entry).filter_by(id=entry_id).first()
+    if not entry:
         return jsonify({"message": "Entry not found"}), 404
 
-    supabase.table('entries').delete().eq('id', entry_id).execute()
+    db_session.delete(entry)
+    db_session.commit()
     return jsonify({"message": "Entry deleted successfully"}), 200
 
 @entry_routes.route("/voice", methods=["POST"])
@@ -163,83 +111,23 @@ def save_voice_note():
             return jsonify({"message": "Invalid capsule open date format"}), 400
 
     try:
-        entry_data = {
-            "user_id": user_id,
-            "title": request.form.get("title"),
-            "mood": request.form.get("mood"),
-            "type": "voice",
-            "audio_data": audio_data,
-            "is_capsule": is_capsule,
-            "capsule_open_date": capsule_date.isoformat() if capsule_date else None
-        }
-        supabase.table('entries').insert(entry_data).execute()
+        entry = Entry(
+            user_id=user_id,
+            title=request.form.get("title"),
+            mood=request.form.get("mood"),
+            type="voice",
+            audio_data=audio_data,
+            is_capsule=is_capsule,
+            capsule_open_date=capsule_date
+        )
+        db_session.add(entry)
+        db_session.commit()
         print("Voice note: Database entry saved successfully")
     except Exception as e:
         print(f"Voice note: Error saving to database: {e}")
         return jsonify({"message": "Failed to save voice note"}), 500
 
     return jsonify({"message": "Voice note saved successfully"})
-
-@entry_routes.route("/drawing", methods=["POST"])
-def save_drawing_entry():
-    """Saves a new drawing-based journal entry."""
-    print("Drawing entry: Received POST request to /entries/drawing")
-
-    user_id = request.form.get("user_id")
-    title = request.form.get("title", "")
-    mood = request.form.get("mood", "Neutral")
-    is_capsule = request.form.get("is_capsule", "false").lower() == "true"
-    capsule_open_date = request.form.get("capsule_open_date")
-
-    print(f"Drawing entry: user_id={user_id}, title={title}, mood={mood}, is_capsule={is_capsule}")
-
-    if not user_id:
-        print("Drawing entry: Missing user_id")
-        return jsonify({"message": "Missing required data"}), 400
-
-    # Check if drawing data is provided
-    if 'drawing' not in request.files:
-        print("Drawing entry: No drawing file in request.files")
-        return jsonify({"message": "No drawing data provided"}), 400
-
-    drawing_file = request.files['drawing']
-    if not drawing_file.filename:
-        print("Drawing entry: Empty drawing filename")
-        return jsonify({"message": "Empty drawing data"}), 400
-
-    # Read the drawing data
-    try:
-        drawing_data = drawing_file.read()
-        print(f"Drawing entry: Read drawing data, size={len(drawing_data)} bytes")
-    except Exception as e:
-        print(f"Drawing entry: Error reading drawing file: {e}")
-        return jsonify({"message": "Failed to read drawing data"}), 500
-
-    capsule_date = None
-    if is_capsule and capsule_open_date:
-        try:
-            capsule_date = datetime.fromisoformat(capsule_open_date.replace('Z', '+00:00'))
-        except ValueError:
-            return jsonify({"message": "Invalid capsule open date format"}), 400
-
-    try:
-        entry_data = {
-            "user_id": user_id,
-            "title": title,
-            "content": "",  # No text content for drawing entries
-            "type": "drawing",
-            "mood": mood,
-            "drawing_data": drawing_data,
-            "is_capsule": is_capsule,
-            "capsule_open_date": capsule_date.isoformat() if capsule_date else None
-        }
-        supabase.table('entries').insert(entry_data).execute()
-        print("Drawing entry: Database entry saved successfully")
-    except Exception as e:
-        print(f"Drawing entry: Error saving to database: {e}")
-        return jsonify({"message": "Failed to save drawing entry"}), 500
-
-    return jsonify({"message": "Drawing entry saved successfully"})
 
 @entry_routes.route("/generate-prompts", methods=["POST"])
 def generate_ai_prompts():
