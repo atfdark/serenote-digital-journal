@@ -7,8 +7,12 @@ from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 # Load environment variables from .env
 load_dotenv()
 
-# Get database URI from environment variable or use SQLite as fallback
-db_uri = os.environ.get('DATABASE_URL', 'sqlite:////tmp/serenote.db')
+# Allow forcing local SQLite for development (useful to avoid remote DB timeouts)
+if os.environ.get('FORCE_SQLITE'):
+    db_uri = 'sqlite:////tmp/serenote.db'
+else:
+    # Get database URI from environment variable or use SQLite as fallback
+    db_uri = os.environ.get('DATABASE_URL', 'sqlite:////tmp/serenote.db')
 
 # If DATABASE_URL is set but connection fails, fall back to SQLite
 try:
