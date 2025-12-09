@@ -1,11 +1,8 @@
 # file: app/routes/entry_routes.py (Corrected)
 
 from flask import Blueprint, request, jsonify
-from flask_login import current_user, login_required
-from app.database.db import db_session
-from app.database.models import Entry
+from app.database.supabase_client import supabase
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import func
 import openai
 import base64
 
@@ -17,19 +14,18 @@ entry_routes = Blueprint("entry", __name__)
 # Set OpenAI API key (in production, use environment variable)
 openai.api_key = "your-openai-api-key-here"  # Replace with actual key or env var
 
-@login_required
 @entry_routes.route("/add", methods=["POST"])
 def add_text_entry():
     """Adds a new text-based journal entry."""
     data = request.json
-    user_id = current_user.id
+    user_id = data.get("user_id")
     title = data.get("title")
     content = data.get("content")
     mood = data.get("mood", "Neutral")   # 👈 allow mood from frontend
     is_capsule = data.get("is_capsule", False)
     capsule_open_date = data.get("capsule_open_date")
 
-    if not all([title, content]):
+    if not all([user_id, title, content]):
         return jsonify({"message": "Missing required fields"}), 400
 
     from datetime import datetime
@@ -40,243 +36,99 @@ def add_text_entry():
         except ValueError:
             return jsonify({"message": "Invalid capsule open date format"}), 400
 
-    new_entry = Entry(
-        user_id=user_id,
-        title=title,
-        content=content,
-        type="text",
-        mood=mood,
-        is_capsule=is_capsule,
-        capsule_open_date=capsule_date
-    )
-    db_session.add(new_entry)
-    db_session.commit()
+    entry_data = {
+        "user_id": user_id,
+        "title": title,
+        "content": content,
+        "type": "text",
+        "mood": mood,
+        "is_capsule": is_capsule,
+        "capsule_open_date": capsule_date.isoformat() if capsule_date else None
+    }
+    supabase.table('entries').insert(entry_data).execute()
     return jsonify({"message": "Entry saved successfully"}), 201
 
-@login_required
 @entry_routes.route("/user/<int:user_id>", methods=["GET"])
 def get_entries(user_id):
-    """Legacy endpoint - returns all entries with audio data (use specific endpoints for better performance)"""
-    print(f"DEBUG: get_entries called by user {current_user.id} for user_id {user_id}")
-    print(f"DEBUG: current_user.id type: {type(current_user.id)}, user_id type: {type(user_id)}")
-    if user_id != current_user.id:
-        print(f"DEBUG: Authorization failed: {user_id} != {current_user.id}")
-        return jsonify({"message": "Unauthorized"}), 403
-    print(f"DEBUG: Authorization passed")
-    entries = db_session.query(Entry).filter_by(user_id=current_user.id).order_by(Entry.created_at.desc()).all()
-    print(f"DEBUG: Found {len(entries)} total entries for user {current_user.id}")
-    voice_entries = [e for e in entries if e.type == 'voice']
-    print(f"DEBUG: Found {len(voice_entries)} voice entries")
-    result = []
-    for entry in entries:
-        if entry.created_at is None:
-            continue
-        entry_data = {
-            "id": entry.id, "title": entry.title, "content": entry.content,
-            "mood": entry.mood, "type": entry.type, "audio_path": entry.audio_path,
-            "is_capsule": entry.is_capsule, "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
-            "created_at": entry.created_at.isoformat()
-        }
-        if entry.audio_data:
-            entry_data["audio_data"] = base64.b64encode(entry.audio_data).decode('utf-8')
-            print(f"DEBUG: Entry {entry.id} has audio_data, length: {len(entry_data['audio_data'])}")
-        result.append(entry_data)
-    print(f"DEBUG: Returning {len(result)} entries")
-    return jsonify(result)
+    print(f"DEBUG: get_entries called for user_id={user_id}")
+    try:
+        response = supabase.table('entries').select('*').eq('user_id', user_id).order('created_at', desc=True).execute()
+        entries = response.data
+        print(f"DEBUG: Found {len(entries)} entries for user {user_id}")
+        result = []
+        for entry in entries:
+            print(f"DEBUG: Processing entry {entry['id']}, type={entry['type']}, has_drawing_data={entry.get('drawing_data') is not None}")
+            entry_data = {
+                "id": entry["id"], "title": entry["title"], "content": entry["content"],
+                "mood": entry["mood"], "type": entry["type"], "audio_path": entry["audio_path"],
+                "is_capsule": entry["is_capsule"], "capsule_open_date": entry["capsule_open_date"],
+                "created_at": entry["created_at"]
+            }
+            # Exclude large binary data from list response to prevent JavaScript innerHTML issues
+            # Binary data will be loaded separately when needed
+            # if entry.get("audio_data"):
+            #     try:
+            #         entry_data["audio_data"] = base64.b64encode(entry["audio_data"]).decode('utf-8')
+            #         print(f"DEBUG: Encoded audio_data for entry {entry['id']}, length={len(entry_data['audio_data'])}")
+            #     except Exception as e:
+            #         print(f"ERROR: Failed to encode audio_data for entry {entry['id']}: {e}")
+            #         entry_data["audio_data"] = None
+            # if entry.get("drawing_data"):
+            #     try:
+            #         entry_data["drawing_data"] = base64.b64encode(entry["drawing_data"]).decode('utf-8')
+            #         print(f"DEBUG: Encoded drawing_data for entry {entry['id']}, length={len(entry_data['drawing_data'])}")
+            #     except Exception as e:
+            #         print(f"ERROR: Failed to encode drawing_data for entry {entry['id']}: {e}")
+            #         entry_data["drawing_data"] = None
+            result.append(entry_data)
+        print(f"DEBUG: Returning {len(result)} entries")
+        return jsonify(result)
+    except Exception as e:
+        print(f"ERROR: Exception in get_entries: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Internal server error"}), 500
 
-@login_required
-@entry_routes.route("/text/<int:user_id>", methods=["GET"])
-def get_text_entries(user_id):
-    """Optimized endpoint for text entries only - no audio data"""
-    if user_id != current_user.id:
-        return jsonify({"message": "Unauthorized"}), 403
+@entry_routes.route("/audio/<int:entry_id>", methods=["GET"])
+def get_audio_data(entry_id):
+    """Get audio data for a specific entry."""
+    response = supabase.table('entries').select('*').eq('id', entry_id).execute()
+    entry = response.data[0] if response.data else None
+    if not entry or not entry.get("audio_data"):
+        return jsonify({"message": "Audio not found"}), 404
 
-    # Get pagination parameters
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 50))
-    offset = (page - 1) * limit
+    try:
+        audio_b64 = base64.b64encode(entry["audio_data"]).decode('utf-8')
+        return jsonify({"audio_data": audio_b64})
+    except Exception as e:
+        print(f"ERROR: Failed to encode audio_data for entry {entry_id}: {e}")
+        return jsonify({"message": "Failed to encode audio"}), 500
 
-    # Query only text entries
-    entries = db_session.query(Entry).filter_by(
-        user_id=current_user.id,
-        type='text'
-    ).order_by(Entry.created_at.desc()).offset(offset).limit(limit).all()
+@entry_routes.route("/drawing/<int:entry_id>", methods=["GET"])
+def get_drawing_data(entry_id):
+    """Get drawing data for a specific entry."""
+    response = supabase.table('entries').select('*').eq('id', entry_id).execute()
+    entry = response.data[0] if response.data else None
+    if not entry or not entry.get("drawing_data"):
+        return jsonify({"message": "Drawing not found"}), 404
 
-    result = []
-    for entry in entries:
-        if entry.created_at is None:
-            continue
-        entry_data = {
-            "id": entry.id,
-            "title": entry.title,
-            "content": entry.content,
-            "mood": entry.mood,
-            "type": entry.type,
-            "is_capsule": entry.is_capsule,
-            "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
-            "created_at": entry.created_at.isoformat(),
-            "tags": entry.tags.split(',') if entry.tags else []
-        }
-        result.append(entry_data)
+    try:
+        drawing_b64 = base64.b64encode(entry["drawing_data"]).decode('utf-8')
+        return jsonify({"drawing_data": drawing_b64})
+    except Exception as e:
+        print(f"ERROR: Failed to encode drawing_data for entry {entry_id}: {e}")
+        return jsonify({"message": "Failed to encode drawing"}), 500
 
-    # Get total count for pagination
-    total_count = db_session.query(Entry).filter_by(
-        user_id=current_user.id,
-        type='text'
-    ).count()
-
-    return jsonify({
-        "entries": result,
-        "pagination": {
-            "page": page,
-            "limit": limit,
-            "total": total_count,
-            "pages": (total_count + limit - 1) // limit
-        }
-    })
-
-@login_required
-@entry_routes.route("/voice/metadata/<int:user_id>", methods=["GET"])
-def get_voice_entries_metadata(user_id):
-    """Returns voice entries metadata without audio data for better performance"""
-    if user_id != current_user.id:
-        return jsonify({"message": "Unauthorized"}), 403
-
-    # Get pagination parameters
-    page = int(request.args.get('page', 1))
-    limit = int(request.args.get('limit', 50))
-    offset = (page - 1) * limit
-
-    # Query voice entries without audio_data
-    entries = db_session.query(
-        Entry.id, Entry.title, Entry.mood, Entry.type, Entry.is_capsule,
-        Entry.capsule_open_date, Entry.created_at, Entry.audio_path
-    ).filter_by(
-        user_id=current_user.id,
-        type='voice'
-    ).order_by(Entry.created_at.desc()).offset(offset).limit(limit).all()
-
-    result = []
-    for entry in entries:
-        entry_data = {
-            "id": entry.id,
-            "title": entry.title or "Voice Note",
-            "mood": entry.mood,
-            "type": entry.type,
-            "audio_path": entry.audio_path,
-            "is_capsule": entry.is_capsule,
-            "capsule_open_date": entry.capsule_open_date.isoformat() if entry.capsule_open_date else None,
-            "created_at": entry.created_at.isoformat()
-        }
-        result.append(entry_data)
-
-    # Get total count for pagination
-    total_count = db_session.query(Entry).filter_by(
-        user_id=current_user.id,
-        type='voice'
-    ).count()
-
-    return jsonify({
-        "entries": result,
-        "pagination": {
-            "page": page,
-            "limit": limit,
-            "total": total_count,
-            "pages": (total_count + limit - 1) // limit
-        }
-    })
-
-@login_required
-@entry_routes.route("/voice/audio/<int:entry_id>", methods=["GET"])
-def get_voice_audio(entry_id):
-    """Lazy load audio data for a specific voice entry"""
-    print(f"DEBUG: get_voice_audio called for entry_id={entry_id}, user_id={current_user.id}")
-    entry = db_session.query(Entry).filter_by(id=entry_id, user_id=current_user.id).first()
-    if not entry:
-        print(f"DEBUG: Entry {entry_id} not found for user {current_user.id}")
-        return jsonify({"message": "Entry not found"}), 404
-
-    print(f"DEBUG: Entry found - type: {entry.type}, has audio_data: {entry.audio_data is not None}")
-    if entry.type != 'voice' or not entry.audio_data:
-        print(f"DEBUG: No audio data available - type: {entry.type}, audio_data exists: {entry.audio_data is not None}")
-        return jsonify({"message": "No audio data available"}), 404
-
-    # Determine MIME type based on audio_path or default to webm
-    mime_type = "audio/webm"
-    if entry.audio_path:
-        if entry.audio_path.endswith('.mp4') or entry.audio_path.endswith('.m4a'):
-            mime_type = "audio/mp4"
-        elif entry.audio_path.endswith('.wav'):
-            mime_type = "audio/wav"
-        elif entry.audio_path.endswith('.ogg'):
-            mime_type = "audio/ogg"
-
-    audio_data_b64 = base64.b64encode(entry.audio_data).decode('utf-8')
-    print(f"DEBUG: Returning audio data - MIME type: {mime_type}, data length: {len(audio_data_b64)}")
-    return jsonify({
-        "audio_data": audio_data_b64,
-        "mime_type": mime_type
-    })
-
-@login_required
-@entry_routes.route("/summary/<int:user_id>", methods=["GET"])
-def get_entries_summary(user_id):
-    """Combined endpoint for entry statistics and recent entries"""
-    if user_id != current_user.id:
-        return jsonify({"message": "Unauthorized"}), 403
-
-    # Get counts by type
-    text_count = db_session.query(Entry).filter_by(user_id=current_user.id, type='text').count()
-    voice_count = db_session.query(Entry).filter_by(user_id=current_user.id, type='voice').count()
-    capsule_count = db_session.query(Entry).filter_by(user_id=current_user.id, is_capsule=True).count()
-
-    # Get recent entries (last 5 text entries for dashboard)
-    recent_entries = db_session.query(Entry).filter_by(
-        user_id=current_user.id,
-        type='text'
-    ).order_by(Entry.created_at.desc()).limit(5).all()
-
-    recent_data = []
-    for entry in recent_entries:
-        recent_data.append({
-            "id": entry.id,
-            "title": entry.title,
-            "created_at": entry.created_at.isoformat(),
-            "mood": entry.mood
-        })
-
-    # Get today's entry count
-    today = datetime.now(IST).date()
-    today_count = db_session.query(Entry).filter(
-        Entry.user_id == current_user.id,
-        Entry.type == 'text',
-        func.date(Entry.created_at) == today
-    ).count()
-
-    return jsonify({
-        "stats": {
-            "total_entries": text_count + voice_count,
-            "text_entries": text_count,
-            "voice_entries": voice_count,
-            "time_capsules": capsule_count,
-            "today_entries": today_count
-        },
-        "recent_entries": recent_data
-    })
-
-@login_required
 @entry_routes.route("/delete/<int:entry_id>", methods=["DELETE"])
 def delete_entry(entry_id):
     """Deletes an entry by ID."""
-    entry = db_session.query(Entry).filter_by(id=entry_id, user_id=current_user.id).first()
-    if not entry:
+    response = supabase.table('entries').select('*').eq('id', entry_id).execute()
+    if not response.data:
         return jsonify({"message": "Entry not found"}), 404
 
-    db_session.delete(entry)
-    db_session.commit()
+    supabase.table('entries').delete().eq('id', entry_id).execute()
     return jsonify({"message": "Entry deleted successfully"}), 200
 
-@login_required
 @entry_routes.route("/voice", methods=["POST"])
 def save_voice_note():
     print("Voice note: Received POST request to /entries/voice")
@@ -284,15 +136,15 @@ def save_voice_note():
         print("Voice note: No audio file in request.files")
         return jsonify({"message": "No audio file provided"}), 400
 
-    user_id = current_user.id
+    user_id = request.form.get("user_id")
     file = request.files['audio']
     is_capsule = request.form.get("is_capsule", "false").lower() == "true"
     capsule_open_date = request.form.get("capsule_open_date")
 
     print(f"Voice note: user_id={user_id}, file.filename={file.filename}, is_capsule={is_capsule}")
 
-    if not file.filename:
-        print("Voice note: Missing filename")
+    if not user_id or not file.filename:
+        print("Voice note: Missing user_id or filename")
         return jsonify({"message": "Missing required data"}), 400
 
     # Read the audio file data
@@ -311,17 +163,16 @@ def save_voice_note():
             return jsonify({"message": "Invalid capsule open date format"}), 400
 
     try:
-        entry = Entry(
-            user_id=user_id,
-            title=request.form.get("title"),
-            mood=request.form.get("mood"),
-            type="voice",
-            audio_data=audio_data,
-            is_capsule=is_capsule,
-            capsule_open_date=capsule_date
-        )
-        db_session.add(entry)
-        db_session.commit()
+        entry_data = {
+            "user_id": user_id,
+            "title": request.form.get("title"),
+            "mood": request.form.get("mood"),
+            "type": "voice",
+            "audio_data": audio_data,
+            "is_capsule": is_capsule,
+            "capsule_open_date": capsule_date.isoformat() if capsule_date else None
+        }
+        supabase.table('entries').insert(entry_data).execute()
         print("Voice note: Database entry saved successfully")
     except Exception as e:
         print(f"Voice note: Error saving to database: {e}")
@@ -329,7 +180,67 @@ def save_voice_note():
 
     return jsonify({"message": "Voice note saved successfully"})
 
-@login_required
+@entry_routes.route("/drawing", methods=["POST"])
+def save_drawing_entry():
+    """Saves a new drawing-based journal entry."""
+    print("Drawing entry: Received POST request to /entries/drawing")
+
+    user_id = request.form.get("user_id")
+    title = request.form.get("title", "")
+    mood = request.form.get("mood", "Neutral")
+    is_capsule = request.form.get("is_capsule", "false").lower() == "true"
+    capsule_open_date = request.form.get("capsule_open_date")
+
+    print(f"Drawing entry: user_id={user_id}, title={title}, mood={mood}, is_capsule={is_capsule}")
+
+    if not user_id:
+        print("Drawing entry: Missing user_id")
+        return jsonify({"message": "Missing required data"}), 400
+
+    # Check if drawing data is provided
+    if 'drawing' not in request.files:
+        print("Drawing entry: No drawing file in request.files")
+        return jsonify({"message": "No drawing data provided"}), 400
+
+    drawing_file = request.files['drawing']
+    if not drawing_file.filename:
+        print("Drawing entry: Empty drawing filename")
+        return jsonify({"message": "Empty drawing data"}), 400
+
+    # Read the drawing data
+    try:
+        drawing_data = drawing_file.read()
+        print(f"Drawing entry: Read drawing data, size={len(drawing_data)} bytes")
+    except Exception as e:
+        print(f"Drawing entry: Error reading drawing file: {e}")
+        return jsonify({"message": "Failed to read drawing data"}), 500
+
+    capsule_date = None
+    if is_capsule and capsule_open_date:
+        try:
+            capsule_date = datetime.fromisoformat(capsule_open_date.replace('Z', '+00:00'))
+        except ValueError:
+            return jsonify({"message": "Invalid capsule open date format"}), 400
+
+    try:
+        entry_data = {
+            "user_id": user_id,
+            "title": title,
+            "content": "",  # No text content for drawing entries
+            "type": "drawing",
+            "mood": mood,
+            "drawing_data": drawing_data,
+            "is_capsule": is_capsule,
+            "capsule_open_date": capsule_date.isoformat() if capsule_date else None
+        }
+        supabase.table('entries').insert(entry_data).execute()
+        print("Drawing entry: Database entry saved successfully")
+    except Exception as e:
+        print(f"Drawing entry: Error saving to database: {e}")
+        return jsonify({"message": "Failed to save drawing entry"}), 500
+
+    return jsonify({"message": "Drawing entry saved successfully"})
+
 @entry_routes.route("/generate-prompts", methods=["POST"])
 def generate_ai_prompts():
     """Analyze journal content and provide emotion-based quotes/messages."""
@@ -342,7 +253,6 @@ def generate_ai_prompts():
     try:
         # Use the user's explicitly selected mood for compassionate responses
         # The AI analysis is still performed for personalized messages, but we respect user's self-identification
-        mood = data.get("mood")
         detected_emotion = mood.lower() if mood else "neutral"
 
         # Now generate appropriate messages based on detected emotion
@@ -404,7 +314,6 @@ def generate_ai_prompts():
             "is_low_mood": False
         }), 200
 
-@login_required
 @entry_routes.route("/compassionate-tools", methods=["GET"])
 def get_compassionate_tools():
     """Get all compassionate response tools based on emotion."""

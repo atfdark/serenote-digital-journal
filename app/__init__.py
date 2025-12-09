@@ -1,6 +1,5 @@
-from flask import Flask, request, redirect, url_for, jsonify, make_response
+from flask import Flask
 from flask_cors import CORS
-from flask_login import LoginManager
 import os
 from .database.db import init_db, db_session
 from app.routes.auth_routes import auth_routes
@@ -32,20 +31,6 @@ def create_app():
     # 📂 Initialize database
     init_db()
 
-    # Initialize LoginManager
-    login_manager = LoginManager()
-    login_manager.init_app(app)
-    login_manager.login_view = 'views.login_page'
-
-    @login_manager.unauthorized_handler
-    def unauthorized():
-        # For API routes, return 401
-        if request.path.startswith(('/auth/', '/todos/', '/entries/', '/garden/', '/dashboard/')):
-            return make_response("Authentication required", 401)
-        # For web routes, redirect to login
-        else:
-            return redirect(url_for('views.login_page'))
-
     # 🌍 Allow frontend JS to call backend (important if frontend runs separately)
     CORS(app)
 
@@ -56,11 +41,6 @@ def create_app():
     app.register_blueprint(view_routes)
     app.register_blueprint(dashboard_api)
     app.register_blueprint(todo_routes, url_prefix="/todos")
-
-    @login_manager.user_loader
-    def load_user(user_id):
-        from .database.models import User
-        return db_session.query(User).get(int(user_id))
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

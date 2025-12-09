@@ -3,12 +3,11 @@ from sqlalchemy.orm import relationship
 from .db import Base
 import datetime
 from datetime import timezone, timedelta
-from flask_login import UserMixin
 
 # IST timezone (UTC+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
 
-class User(Base, UserMixin):
+class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     username = Column(String(100), unique=True, nullable=False)
@@ -23,10 +22,11 @@ class Entry(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     title = Column(String(200))
     content = Column(Text)
-    type = Column(String(50))   # text or voice
+    type = Column(String(50))   # text, voice, or drawing
     mood = Column(String(50))
     audio_path = Column(String(300), nullable=True)
     audio_data = Column(LargeBinary, nullable=True)
+    drawing_data = Column(LargeBinary, nullable=True)  # Store drawing as binary data
     is_capsule = Column(Boolean, default=False)
     capsule_open_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.datetime.now(IST))

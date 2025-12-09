@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- API Helper ---
     const api = {
         async get(endpoint) {
-            const res = await fetch(endpoint, { credentials: 'include' });
+            const res = await fetch(endpoint);
             if (!res.ok) throw new Error(`Failed to fetch data`);
             return res.json();
         },
@@ -29,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const options = {
                 method: 'POST',
                 body: isFormData ? body : JSON.stringify(body),
-                credentials: 'include'
             };
             if (!isFormData) {
                 options.headers = { 'Content-Type': 'application/json' };
@@ -45,8 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(endpoint, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-                credentials: 'include'
+                body: JSON.stringify(body)
             });
 
             if (!res.ok) {
@@ -56,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return res.json();
         },
         async delete(endpoint) {
-            const res = await fetch(endpoint, { method: 'DELETE', credentials: 'include' });
+            const res = await fetch(endpoint, { method: 'DELETE' });
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({ message: "Failed to delete" }));
                 throw new Error(errorData.message);
@@ -78,21 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadUserDetails() {
         if (!usernameDisplay) return;
-
-        // Check cache first
-        const cachedProfile = cache.get('userProfile');
-        if (cachedProfile) {
-            usernameDisplay.textContent = cachedProfile.username;
-            if (profileBtn) {
-                profileBtn.setAttribute("aria-label", `Profile menu for ${cachedProfile.username}`);
-                profileBtn.setAttribute("title", cachedProfile.username);
-            }
-            return;
-        }
-
         try {
             const { username } = await api.get(`/auth/user/${userId}`);
-            cache.set('userProfile', { username });
             usernameDisplay.textContent = username;
             if (profileBtn) {
                 profileBtn.setAttribute("aria-label", `Profile menu for ${username}`);
@@ -107,33 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUserDetails();
 
     let moodChartInstance = null;
-
-    // Client-side caching for performance
-    const cache = {
-        userProfile: null,
-        dashboardSummary: null,
-        journalStats: null,
-        cacheTimeout: 5 * 60 * 1000, // 5 minutes
-
-        set: function(key, data) {
-            this[key] = {
-                data: data,
-                timestamp: Date.now()
-            };
-        },
-
-        get: function(key) {
-            const cached = this[key];
-            if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
-                return cached.data;
-            }
-            return null;
-        },
-
-        clear: function(key) {
-            this[key] = null;
-        }
-    };
 
     // Dark Mode
     const darkModeToggle = document.getElementById('darkModeToggle');
@@ -230,9 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Export Functions ---
     async function exportJournal() {
         try {
-            // Use optimized text-only endpoint for export
-            const data = await api.get(`/entries/text/${userId}?limit=1000`);
-            const textEntries = data.entries;
+            const entries = await api.get(`/entries/user/${userId}`);
+            const textEntries = entries.filter(e => e.type === 'text' || e.type === 'drawing');
 
             // Initialize jsPDF
             const { jsPDF } = window.jspdf;
@@ -357,11 +314,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 doc.setFontSize(11);
                 let contentToProcess = entry.content;
 
-                // Regular text entry
-                const contentLines = doc.splitTextToSize(contentToProcess, 170);
-                const linesAdded = doc.text(contentLines, 20, yPosition);
-                const contentHeight = contentLines.length * 5;
-                yPosition += contentHeight + 15;
+                // Handle drawing entries
+                if (entry.type === 'drawing') {
+                    const drawingDataMatch = entry.content.match(/\[Drawing Data\]\n(.+)/);
+                    if (drawingDataMatch) {
+                        // Add text content first (if any)
+                        const textContent = entry.content.replace(/\[Drawing Data\]\n.+/, '').trim();
+                        if (textContent) {
+                            const textLines = doc.splitTextToSize(textContent, 170);
+                            doc.text(textLines, 20, yPosition);
+                            const textHeight = textLines.length * 5;
+                            yPosition += textHeight + 10;
+                        }
+
+                        // Add drawing image
+                        try {
+                            const img = new Image();
+                            img.src = drawingDataMatch[1];
+
+                            await new Promise((resolve) => {
+                                img.onload = resolve;
+                            });
+
+                            // Calculate dimensions to fit in PDF
+                            const maxWidth = 170;
+                            const maxHeight = 100;
+                            let imgWidth = img.width;
+                            let imgHeight = img.height;
+
+                            if (imgWidth > maxWidth) {
+                                imgHeight = (imgHeight * maxWidth) / imgWidth;
+                                imgWidth = maxWidth;
+                            }
+
+                            if (imgHeight > maxHeight) {
+                                imgWidth = (imgWidth * maxHeight) / imgHeight;
+                                imgHeight = maxHeight;
+                            }
+
+                            // Check if we need a new page
+                            if (yPosition + imgHeight > 250) {
+                                doc.addPage();
+                                currentPage++;
+                                yPosition = 40;
+                            }
+
+                            doc.addImage(img, 'JPEG', 20, yPosition, imgWidth, imgHeight);
+                            yPosition += imgHeight + 15;
+
+                            // Add label for drawing
+                            doc.setFontSize(10);
+                            doc.setTextColor(100, 100, 100);
+                            doc.text('🎨 Drawing Entry', 20, yPosition);
+                            yPosition += 10;
+                        } catch (error) {
+                            console.error('Error adding drawing to PDF:', error);
+                            doc.text('[Drawing could not be loaded]', 20, yPosition);
+                            yPosition += 10;
+                        }
+                    } else {
+                        const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                        const linesAdded = doc.text(contentLines, 20, yPosition);
+                        const contentHeight = contentLines.length * 5;
+                        yPosition += contentHeight + 15;
+                    }
+                } else {
+                    // Regular text entry
+                    const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                    const linesAdded = doc.text(contentLines, 20, yPosition);
+                    const contentHeight = contentLines.length * 5;
+                    yPosition += contentHeight + 15;
+                }
 
                 // Add images if they exist
                 if (entry.images && entry.images.length > 0) {
@@ -440,11 +463,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function exportSingleEntry(entryId) {
         try {
-            // For single entry export, we need to get the specific entry
-            // Since we don't have a single entry endpoint, we'll use the text endpoint
-            // and find the entry (this could be optimized further with a dedicated endpoint)
-            const data = await api.get(`/entries/text/${userId}?limit=1000`);
-            const entry = data.entries.find(e => e.id == entryId);
+            const entries = await api.get(`/entries/user/${userId}`);
+            const entry = entries.find(e => e.id == entryId);
 
             if (!entry) {
                 showNotification('Entry not found', 'error');
@@ -535,11 +555,76 @@ document.addEventListener('DOMContentLoaded', () => {
             doc.setFontSize(11);
             let contentToProcess = entry.content;
 
-            // Regular text entry
-            const contentLines = doc.splitTextToSize(contentToProcess, 170);
-            doc.text(contentLines, 20, yPosition);
-            const contentHeight = contentLines.length * 5;
-            yPosition += contentHeight + 20;
+            // Handle drawing entries
+            if (entry.type === 'drawing') {
+                const drawingDataMatch = entry.content.match(/\[Drawing Data\]\n(.+)/);
+                if (drawingDataMatch) {
+                    // Add text content first (if any)
+                    const textContent = entry.content.replace(/\[Drawing Data\]\n.+/, '').trim();
+                    if (textContent) {
+                        const textLines = doc.splitTextToSize(textContent, 170);
+                        doc.text(textLines, 20, yPosition);
+                        const textHeight = textLines.length * 5;
+                        yPosition += textHeight + 10;
+                    }
+
+                    // Add drawing image
+                    try {
+                        const img = new Image();
+                        img.src = drawingDataMatch[1];
+
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                        });
+
+                        // Calculate dimensions to fit in PDF
+                        const maxWidth = 170;
+                        const maxHeight = 120;
+                        let imgWidth = img.width;
+                        let imgHeight = img.height;
+
+                        if (imgWidth > maxWidth) {
+                            imgHeight = (imgHeight * maxWidth) / imgWidth;
+                            imgWidth = maxWidth;
+                        }
+
+                        if (imgHeight > maxHeight) {
+                            imgWidth = (imgWidth * maxHeight) / imgHeight;
+                            imgHeight = maxHeight;
+                        }
+
+                        // Check if we need a new page
+                        if (yPosition + imgHeight > 270) {
+                            doc.addPage();
+                            yPosition = 50;
+                        }
+
+                        doc.addImage(img, 'JPEG', 20, yPosition, imgWidth, imgHeight);
+                        yPosition += imgHeight + 15;
+
+                        // Add label for drawing
+                        doc.setFontSize(10);
+                        doc.setTextColor(100, 100, 100);
+                        doc.text('🎨 Drawing Entry', 20, yPosition);
+                        yPosition += 10;
+                    } catch (error) {
+                        console.error('Error adding drawing to PDF:', error);
+                        doc.text('[Drawing could not be loaded]', 20, yPosition);
+                        yPosition += 10;
+                    }
+                } else {
+                    const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                    doc.text(contentLines, 20, yPosition);
+                    const contentHeight = contentLines.length * 5;
+                    yPosition += contentHeight + 20;
+                }
+            } else {
+                // Regular text entry
+                const contentLines = doc.splitTextToSize(contentToProcess, 170);
+                doc.text(contentLines, 20, yPosition);
+                const contentHeight = contentLines.length * 5;
+                yPosition += contentHeight + 20;
+            }
 
             // Add images if they exist
             if (entry.images && entry.images.length > 0) {
@@ -671,23 +756,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadRecentEntries() {
         const listEl = document.getElementById('recent-entries-list');
         try {
-            // Check cache first
-            const cachedSummary = cache.get('dashboardSummary');
-            let summary;
-            if (cachedSummary) {
-                summary = cachedSummary;
-            } else {
-                // Use optimized summary endpoint that includes recent entries
-                summary = await api.get(`/entries/summary/${userId}`);
-                cache.set('dashboardSummary', summary);
-            }
-
+            const entries = await api.get(`/entries/user/${userId}`);
             listEl.innerHTML = '';
-
-            if (summary.recent_entries.length === 0) {
+            const textEntries = entries.filter(e => e.type === 'text');
+            if (textEntries.length === 0) {
                 listEl.innerHTML = '<p>No journal entries yet.</p>';
             } else {
-                summary.recent_entries.slice(0, 3).forEach(entry => {
+                textEntries.slice(0, 3).forEach(entry => {
                     const entryEl = document.createElement('div');
                     entryEl.className = 'recent-entry';
                     entryEl.innerHTML = `
@@ -917,30 +992,32 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadJournalStats() {
         const statsEl = document.getElementById('journalStats');
         try {
-            // Check cache first
-            const cachedStats = cache.get('journalStats');
-            let summary;
-            if (cachedStats) {
-                summary = cachedStats;
-            } else {
-                // Use optimized summary endpoint for stats
-                summary = await api.get(`/entries/summary/${userId}`);
-                cache.set('journalStats', summary);
-            }
+            const entries = await api.get(`/entries/user/${userId}`);
+            const todayStr = toIST(new Date()).toLocaleDateString("en-CA");
+            const todayEntries = entries.filter(e => toIST(new Date(e.created_at)).toLocaleDateString("en-CA") === todayStr);
+            const totalEntries = entries.length;
+            const todayCount = todayEntries.length;
+
+            const textEntries = entries.filter(e => e.type === 'text');
+            const drawingEntries = entries.filter(e => e.type === 'drawing');
 
             statsEl.innerHTML = `
                 <div class="journal-stats-card">
                     <div class="stat-item">
-                        <span class="stat-number">${summary.stats.total_entries}</span>
+                        <span class="stat-number">${totalEntries}</span>
                         <span class="stat-label">Total Entries</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">${summary.stats.today_entries}</span>
+                        <span class="stat-number">${todayCount}</span>
                         <span class="stat-label">Today</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">${summary.stats.text_entries}</span>
+                        <span class="stat-number">${textEntries.length}</span>
                         <span class="stat-label">Text Entries</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${drawingEntries.length}</span>
+                        <span class="stat-label">Drawing Entries</span>
                     </div>
                 </div>
             `;
@@ -984,13 +1061,19 @@ document.addEventListener('DOMContentLoaded', () => {
             exportJournal();
         });
 
-        // Use optimized text-only endpoint
-        fetch(`/entries/text/${userId}`)
-            .then(res => res.json())
-            .then(data => {
+        console.log(`DEBUG: Fetching entries for user ${userId}`);
+        fetch(`/entries/user/${userId}`)
+            .then(res => {
+                console.log(`DEBUG: Fetch response status: ${res.status}`);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+            })
+            .then(entries => {
+                console.log(`DEBUG: Received ${entries.length} entries`);
                 const container = document.getElementById("journalContainer");
                 container.innerHTML = "";
-                const entries = data.entries; // Extract entries from paginated response
 
                 // --- Writing area always available ---
                 if (true) {
@@ -1000,6 +1083,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="writing-header">
                                         <div class="writing-prompt" id="writingPrompt">What's on your mind today?</div>
                                         <div class="mode-toggle-container">
+                                            <button id="modeToggle" class="mode-toggle-btn" aria-label="Toggle between text and drawing mode">
+                                                <span class="mode-icon">✏️</span>
+                                                <span class="mode-text">Text Mode</span>
+                                            </button>
                                             <button id="generatePrompt" class="generate-prompt-btn">🎲 Generate Writing Prompt</button>
                                         </div>
                                     </div>
@@ -1045,8 +1132,35 @@ document.addEventListener('DOMContentLoaded', () => {
                                                                             </div>
                                                                             <input id="journalTitle" placeholder="Give your entry a title..." />
 
+                                                                            <!-- Drawing Tools Panel -->
+                                                                            <div id="drawingTools" class="drawing-tools" style="display: none;">
+                                                                                <div class="drawing-tool-group">
+                                                                                    <button id="brushTool" class="drawing-tool active" title="Brush Tool" aria-label="Select brush tool">
+                                                                                        <span class="tool-icon">🖌️</span>
+                                                                                    </button>
+                                                                                    <button id="eraserTool" class="drawing-tool" title="Eraser Tool" aria-label="Select eraser tool">
+                                                                                        <span class="tool-icon">🧽</span>
+                                                                                    </button>
+                                                                                </div>
+                                                                                <div class="drawing-tool-group">
+                                                                                    <label for="brushColor" class="tool-label">Color:</label>
+                                                                                    <input type="color" id="brushColor" value="#000000" title="Choose brush color" aria-label="Choose brush color">
+                                                                                </div>
+                                                                                <div class="drawing-tool-group">
+                                                                                    <label for="brushSize" class="tool-label">Size:</label>
+                                                                                    <input type="range" id="brushSize" min="1" max="50" value="5" title="Adjust brush size" aria-label="Adjust brush size">
+                                                                                    <span id="brushSizeValue" class="size-value">5px</span>
+                                                                                </div>
+                                                                                <div class="drawing-tool-group">
+                                                                                    <button id="clearCanvas" class="drawing-tool secondary" title="Clear canvas" aria-label="Clear all drawings">
+                                                                                        <span class="tool-icon">🗑️</span>
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+
                                                                             <div class="content-container">
                                                                                 <textarea id="journalEntry" placeholder="Start writing your journal entry here..."></textarea>
+                                                                                <canvas id="drawingCanvas" class="drawing-canvas" style="display: none;" width="800" height="600" aria-label="Drawing canvas for journal entry"></canvas>
                                                                             </div>
 
                                                                             <div class="writing-meta-row">
@@ -1192,6 +1306,247 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
+                    // --- Drawing Mode Functionality ---
+                    let isDrawingMode = localStorage.getItem('journalDrawingMode') === 'true';
+                    let currentTool = 'brush';
+                    let brushSize = parseInt(localStorage.getItem('journalBrushSize')) || 5;
+                    let brushColor = localStorage.getItem('journalBrushColor') || '#000000';
+
+                    const modeToggle = document.getElementById('modeToggle');
+                    const modeIcon = modeToggle.querySelector('.mode-icon');
+                    const modeText = modeToggle.querySelector('.mode-text');
+                    const drawingTools = document.getElementById('drawingTools');
+                    const journalEntry = document.getElementById('journalEntry');
+                    const drawingCanvas = document.getElementById('drawingCanvas');
+                    const brushTool = document.getElementById('brushTool');
+                    const eraserTool = document.getElementById('eraserTool');
+                    const brushColorPicker = document.getElementById('brushColor');
+                    const brushSizeSlider = document.getElementById('brushSize');
+                    const brushSizeValue = document.getElementById('brushSizeValue');
+                    const clearCanvasBtn = document.getElementById('clearCanvas');
+
+                    const ctx = drawingCanvas.getContext('2d');
+                    let isDrawing = false;
+                    let lastX = 0;
+                    let lastY = 0;
+
+                    // Initialize UI with saved values
+                    function initializeDrawingUI() {
+                        modeToggle.classList.toggle('drawing-mode', isDrawingMode);
+                        modeIcon.textContent = isDrawingMode ? '🎨' : '✏️';
+                        modeText.textContent = isDrawingMode ? 'Drawing Mode' : 'Text Mode';
+                        drawingTools.style.display = isDrawingMode ? 'flex' : 'none';
+                        journalEntry.style.display = isDrawingMode ? 'none' : 'block';
+                        drawingCanvas.style.display = isDrawingMode ? 'block' : 'none';
+
+                        brushColorPicker.value = brushColor;
+                        brushSizeSlider.value = brushSize;
+                        brushSizeValue.textContent = brushSize + 'px';
+
+                        if (isDrawingMode) {
+                            initCanvas();
+                            loadDrawingData();
+                        }
+                    }
+
+                    // Initialize the UI
+                    initializeDrawingUI();
+
+                    // Load saved drawing data
+                    function loadDrawingData() {
+                        const savedData = localStorage.getItem('journalDrawingData');
+                        if (savedData) {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                                ctx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
+                            };
+                            img.src = savedData;
+                        }
+                    }
+
+                    // Save current drawing data
+                    function saveDrawingData() {
+                        if (isDrawingMode) {
+                            const dataURL = drawingCanvas.toDataURL('image/png');
+                            localStorage.setItem('journalDrawingData', dataURL);
+                        }
+                    }
+
+                    // Initialize canvas
+                    function initCanvas() {
+                        const rect = drawingCanvas.getBoundingClientRect();
+                        drawingCanvas.width = rect.width * window.devicePixelRatio;
+                        drawingCanvas.height = rect.height * window.devicePixelRatio;
+                        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                        drawingCanvas.style.width = rect.width + 'px';
+                        drawingCanvas.style.height = rect.height + 'px';
+
+                        ctx.lineCap = 'round';
+                        ctx.lineJoin = 'round';
+                        ctx.strokeStyle = brushColor;
+                        ctx.lineWidth = brushSize;
+                        ctx.globalCompositeOperation = 'source-over';
+                    }
+
+                    // Load saved drawing data
+                    function loadDrawingData() {
+                        const savedData = localStorage.getItem('journalDrawingData');
+                        if (savedData) {
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, 0, 0);
+                            };
+                            img.src = savedData;
+                        }
+                    }
+
+                    // Save drawing data
+                    function saveDrawingData() {
+                        const dataURL = drawingCanvas.toDataURL();
+                        localStorage.setItem('journalDrawingData', dataURL);
+                    }
+
+                    // Update mode UI
+                    function updateModeUI() {
+                        if (isDrawingMode) {
+                            modeIcon.textContent = '🎨';
+                            modeText.textContent = 'Drawing Mode';
+                            modeToggle.classList.add('drawing-mode');
+                            drawingTools.style.display = 'flex';
+                            journalEntry.style.display = 'none';
+                            drawingCanvas.style.display = 'block';
+                            initCanvas();
+                            loadDrawingData();
+                        } else {
+                            modeIcon.textContent = '✏️';
+                            modeText.textContent = 'Text Mode';
+                            modeToggle.classList.remove('drawing-mode');
+                            drawingTools.style.display = 'none';
+                            journalEntry.style.display = 'block';
+                            drawingCanvas.style.display = 'none';
+                            saveDrawingData();
+                        }
+                    }
+
+                    // Mode toggle event listener
+                    modeToggle.addEventListener('click', () => {
+                        isDrawingMode = !isDrawingMode;
+                        localStorage.setItem('journalDrawingMode', isDrawingMode);
+                        updateModeUI();
+                    });
+
+                    // Tool selection
+                    brushTool.addEventListener('click', () => {
+                        currentTool = 'brush';
+                        brushTool.classList.add('active');
+                        eraserTool.classList.remove('active');
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.strokeStyle = brushColor;
+                    });
+
+                    eraserTool.addEventListener('click', () => {
+                        currentTool = 'eraser';
+                        eraserTool.classList.add('active');
+                        brushTool.classList.remove('active');
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.strokeStyle = 'rgba(0,0,0,1)';
+                    });
+
+                    // Color picker
+                    brushColorPicker.addEventListener('change', (e) => {
+                        brushColor = e.target.value;
+                        if (currentTool === 'brush') {
+                            ctx.strokeStyle = brushColor;
+                        }
+                    });
+
+                    // Brush size slider
+                    brushSizeSlider.addEventListener('input', (e) => {
+                        brushSize = parseInt(e.target.value);
+                        brushSizeValue.textContent = brushSize + 'px';
+                        ctx.lineWidth = brushSize;
+                    });
+
+                    // Clear canvas
+                    clearCanvasBtn.addEventListener('click', () => {
+                        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                        localStorage.removeItem('journalDrawingData');
+                        showNotification('Canvas cleared!', 'info');
+                    });
+
+                    // Drawing functions
+                    function startDrawing(e) {
+                        isDrawing = true;
+                        const rect = drawingCanvas.getBoundingClientRect();
+                        lastX = e.clientX - rect.left;
+                        lastY = e.clientY - rect.top;
+                        ctx.beginPath();
+                        ctx.moveTo(lastX, lastY);
+                    }
+
+                    function draw(e) {
+                        if (!isDrawing) return;
+                        const rect = drawingCanvas.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+
+                        ctx.lineTo(x, y);
+                        ctx.stroke();
+
+                        lastX = x;
+                        lastY = y;
+                    }
+
+                    function stopDrawing() {
+                        if (isDrawing) {
+                            isDrawing = false;
+                            saveDrawingData();
+                        }
+                    }
+
+                    // Touch events for mobile
+                    drawingCanvas.addEventListener('mousedown', startDrawing);
+                    drawingCanvas.addEventListener('mousemove', draw);
+                    drawingCanvas.addEventListener('mouseup', stopDrawing);
+                    drawingCanvas.addEventListener('mouseout', stopDrawing);
+
+                    drawingCanvas.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        const mouseEvent = new MouseEvent('mousedown', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                        });
+                        drawingCanvas.dispatchEvent(mouseEvent);
+                    });
+
+                    drawingCanvas.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        const touch = e.touches[0];
+                        const mouseEvent = new MouseEvent('mousemove', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                        });
+                        drawingCanvas.dispatchEvent(mouseEvent);
+                    });
+
+                    drawingCanvas.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        const mouseEvent = new MouseEvent('mouseup');
+                        drawingCanvas.dispatchEvent(mouseEvent);
+                    });
+
+                    // Initialize mode on page load
+                    updateModeUI();
+
+                    // Handle window resize for canvas
+                    window.addEventListener('resize', () => {
+                        if (isDrawingMode) {
+                            initCanvas();
+                            loadDrawingData();
+                        }
+                    });
 
                     // Font selector logic
                     fontSelect.addEventListener("change", (e) => {
@@ -1321,6 +1676,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         journalEntry.style.borderColor = isDarkBg ? 'rgba(255,255,255,0.3)' : 'rgba(139, 115, 85, 0.3)';
                     }
 
+                    console.log('Writing area created, innerHTML length:', writeBox.innerHTML.length);
+                    container.appendChild(writeBox);
+                    console.log('WriteBox appended to container');
+                    writeBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
                     document.getElementById("saveJournal").addEventListener("click", async () => {
                         const title = journalTitle.value || "Untitled";
                         const contentText = journalEntry.value;
@@ -1329,11 +1689,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         const isCapsule = document.getElementById("isCapsule").checked;
                         const capsuleDate = document.getElementById("capsuleDate").value;
 
-                        // Check if we have content
+                        // Check if we have content in either text or drawing mode
                         const hasTextContent = contentText.trim();
+                        const hasDrawingContent = isDrawingMode && localStorage.getItem('journalDrawingData');
 
-                        if (!hasTextContent) {
-                            showNotification('Please write something!', 'error');
+                        if (!hasTextContent && !hasDrawingContent) {
+                            showNotification('Please write something or draw something!', 'error');
                             return;
                         }
 
@@ -1348,9 +1709,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         saveBtn.textContent = "💾 Saving...";
                         saveBtn.disabled = true;
 
-                        // Prepare content
+                        // Prepare content based on mode
                         let finalContent = contentText;
                         let entryType = 'text';
+
+                        if (isDrawingMode) {
+                            entryType = 'drawing';
+                            const drawingData = localStorage.getItem('journalDrawingData');
+                            if (drawingData) {
+                                // Include both text and drawing data if both exist
+                                if (hasTextContent) {
+                                    finalContent = contentText + '\n\n[Drawing Data]\n' + drawingData;
+                                } else {
+                                    finalContent = '[Drawing Data]\n' + drawingData;
+                                }
+                            }
+                        }
 
                         const payload = {
                             user_id: userId,
@@ -1366,12 +1740,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             await api.post("/entries/add", payload);
 
-                            // Clear draft after successful save
+                            // Clear draft and drawing data after successful save
                             localStorage.removeItem('journalDraft');
-
-                            // Clear relevant caches since data has changed
-                            cache.clear('dashboardSummary');
-                            cache.clear('journalStats');
+                            localStorage.removeItem('journalDrawingData');
 
                             const msg = document.getElementById("saveMsg");
                             msg.classList.remove("hidden");
@@ -1457,7 +1828,7 @@ document.addEventListener('DOMContentLoaded', () => {
                            </div>`;
                         }
 
-                        if (entry.type === "text") {
+                        if (entry.type === "text" || entry.type === "drawing") {
                             if (isLocked) {
                                 div.innerHTML = `
                    <div class="entry-header">
@@ -1467,27 +1838,54 @@ document.addEventListener('DOMContentLoaded', () => {
                    <p style="color: gray;">This capsule is locked until the specified date.</p>
                    <div class="entry-footer">
                      <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                     ${entry.type === "drawing" ? '<span class="entry-type-tag">🎨 Drawing</span>' : ''}
                    </div>`;
                              } else {
                                  const previewText = getContentPreview(entry.content);
                                  const currentTheme = localStorage.getItem('journalTheme') || 'default';
+                                 const isDrawingEntry = entry.type === "drawing";
+                                 const hasDrawingData = entry.content && entry.content.includes('[Drawing Data]');
                                  div.innerHTML = `
                        <div class="entry-clickable" data-entry-id="${entry.id}" data-title="${entry.title}" data-content="${entry.content.replace(/"/g, '"')}" data-mood="${entry.mood || 'Neutral'}" data-theme="${currentTheme}" data-created="${entry.created_at}" data-type="${entry.type}">
                          <div class="entry-header">
-                           <h3>${entry.title}</h3>
+                           <h3>${entry.title} ${isDrawingEntry ? '🎨' : ''}</h3>
                            <time>${formatTimeIST(entry.created_at)}</time>
                          </div>
                          <div class="entry-content">
+                           ${hasDrawingData ? '<div class="drawing-preview"><canvas class="entry-drawing-canvas"></canvas></div>' : ''}
                            <p class="content-preview">${previewText}</p>
                          </div>
                          <div class="entry-footer">
                            <span class="mood-tag">${entry.mood || "Neutral"}</span>
+                           ${isDrawingEntry ? '<span class="entry-type-tag">🎨 Drawing</span>' : ''}
                          </div>
                        </div>
                        <div class="entry-actions">
                          ${actionsHTML}
                        </div>`;
 
+                                 // Load drawing data for drawing entries
+                                 if (hasDrawingData && isDrawingEntry) {
+                                     const drawingDataMatch = entry.content.match(/\[Drawing Data\]\n(.+)/);
+                                     if (drawingDataMatch) {
+                                         const canvas = div.querySelector('.entry-drawing-canvas');
+                                         if (canvas) {
+                                             const ctx = canvas.getContext('2d');
+                                             const img = new Image();
+                                             img.onload = () => {
+                                                 canvas.width = Math.min(img.width, 300);
+                                                 canvas.height = Math.min(img.height, 200);
+                                                 const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                                                 const scaledWidth = img.width * scale;
+                                                 const scaledHeight = img.height * scale;
+                                                 const x = (canvas.width - scaledWidth) / 2;
+                                                 const y = (canvas.height - scaledHeight) / 2;
+                                                 ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                                             };
+                                             img.src = drawingDataMatch[1];
+                                         }
+                                     }
+                                 }
                              }
                          } else if (entry.type === "voice") {
                             div.innerHTML = `
@@ -1518,11 +1916,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 button.disabled = true;
                                 button.textContent = "Deleting...";
                                 await api.delete(`/entries/delete/${entryId}`);
-
-                                // Clear relevant caches since data has changed
-                                cache.clear('dashboardSummary');
-                                cache.clear('journalStats');
-
                                 const entryElement = document.querySelector(`.journal-entry[data-entry-id='${entryId}']`);
                                 if (entryElement) {
                                     entryElement.style.opacity = '0';
@@ -1559,8 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================= VOICE NOTES =================
     let voiceInterval;
 
-    async function loadVoiceNotes() {
-        console.log("Voice note: loadVoiceNotes called");
+    function loadVoiceNotes() {
         if (voiceInterval) clearInterval(voiceInterval);
 
         // Check browser support
@@ -1618,24 +2010,17 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
-        // Load voice stats and recordings asynchronously
-        await loadVoiceStats();
-        await renderRecordings();
+        // Load voice stats
+        loadVoiceStats();
 
         // Load voice stats
         async function loadVoiceStats() {
             const statsEl = document.getElementById('voiceStats');
             try {
-                console.log("Voice note: Loading voice stats for user", userId);
-                // Use optimized summary endpoint
-                const summary = await api.get(`/entries/summary/${userId}`);
-                console.log("Voice note: Stats - voice entries:", summary.stats.voice_entries);
-                const totalVoice = summary.stats.voice_entries;
-                const capsules = summary.stats.time_capsules;
-
-                // For days recorded, we still need to fetch metadata (could be optimized further)
-                const voiceData = await api.get(`/entries/voice/metadata/${userId}?limit=1000`);
-                const daysRecorded = new Set(voiceData.entries.map(e => new Date(e.created_at).toDateString())).size;
+                const entries = await api.get(`/entries/user/${userId}`);
+                const voiceEntries = entries.filter(e => e.type === 'voice');
+                const totalVoice = voiceEntries.length;
+                const capsules = voiceEntries.filter(e => e.is_capsule).length;
 
                 statsEl.innerHTML = `
                     <div class="voice-stats-card">
@@ -1648,13 +2033,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="stat-label">Time Capsules</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number">${daysRecorded}</span>
+                            <span class="stat-number">${new Set(voiceEntries.map(e => new Date(e.created_at).toDateString())).size}</span>
                             <span class="stat-label">Days Recorded</span>
                         </div>
                     </div>
                 `;
-            } catch (error) {
-                console.error("Failed to load voice stats:", error);
+            } catch {
                 statsEl.innerHTML = '<p>Could not load stats.</p>';
             }
         }
@@ -1784,10 +2168,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Try different MIME types for better compatibility
                     const mimeTypes = [
-                        'audio/ogg;codecs=opus',
+                        'audio/webm;codecs=opus',
                         'audio/webm',
                         'audio/mp4',
-                        'audio/webm;codecs=opus'
+                        'audio/wav',
+                        'audio/ogg;codecs=opus'
                     ];
 
                     let selectedMimeType = 'audio/webm';
@@ -2018,21 +2403,15 @@ document.addEventListener('DOMContentLoaded', () => {
         async function renderRecordings() {
             const list = document.getElementById("recordingsList");
             if (!list) return;
-            list.innerHTML = '<div class="loading">Loading voice notes...</div>';
+            list.innerHTML = "";
 
             try {
-                console.log("Voice note: Fetching voice entries metadata for user", userId);
-                const response = await fetch(`/entries/voice/metadata/${userId}`);
-                console.log("Voice note: Fetch response status:", response.status);
-                if (!response.ok) {
-                    console.error("Voice note: Fetch failed with status:", response.status);
-                    const errorText = await response.text();
-                    console.error("Voice note: Error response:", errorText);
-                    throw new Error(`Failed to fetch data`);
-                }
-                const data = await response.json();
-                const voiceEntries = data.entries;
-                console.log("Voice note: Voice entries received:", voiceEntries.length);
+                console.log("Voice note: Fetching entries for user", userId);
+                const entries = await api.get(`/entries/user/${userId}`);
+                console.log("Voice note: Total entries received:", entries.length);
+
+                const voiceEntries = entries.filter(e => e.type === 'voice');
+                console.log("Voice note: Voice entries found:", voiceEntries.length);
 
                 const now = new Date();
 
@@ -2045,7 +2424,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 voiceEntries.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                 voiceEntries.forEach(entry => {
-                    console.log("Voice note: Processing entry:", entry.id, "title:", entry.title);
                     const wrapper = document.createElement("div");
                     wrapper.classList.add("recording-item");
 
@@ -2081,34 +2459,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             const audio = document.createElement("audio");
                             audio.controls = true;
                             audio.preload = "metadata";
-    
-                            // Load audio data immediately for proper duration display
-                            let audioLoaded = false;
-                            const loadAudioData = async () => {
-                                if (audioLoaded) return;
-                                try {
-                                    console.log("Voice note: Loading audio for entry", entry.id);
-                                    console.log("Voice note: Making API call to /entries/voice/audio/" + entry.id);
-                                    const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
-                                    console.log("Voice note: API response received:", audioResponse);
-                                    console.log("Voice note: MIME type:", audioResponse.mime_type);
-                                    console.log("Voice note: Audio data length:", audioResponse.audio_data ? audioResponse.audio_data.length : 'null');
-                                    const dataUrl = `data:${audioResponse.mime_type};base64,${audioResponse.audio_data}`;
-                                    console.log("Voice note: Setting audio src, dataUrl length:", dataUrl.length);
-                                    console.log("Voice note: Data URL starts with:", dataUrl.substring(0, 50));
-                                    audio.src = dataUrl;
-                                    audioLoaded = true;
-                                    console.log("Voice note: Audio src set successfully");
-                                } catch (error) {
-                                    console.error("Voice note: Failed to load audio data:", error);
-                                    console.error("Voice note: Error details:", error.message);
-                                    audioContainer.innerHTML = '<p style="color: red;">⚠️ Audio playback not available</p>';
-                                }
-                            };
-    
-                            // Load audio data immediately when the element is created
-                            loadAudioData();
-                            audio.addEventListener('canplay', () => console.log("Voice note: Audio can play"));
+
+                            if (entry.audio_data) {
+                                audio.src = `data:audio/webm;base64,${entry.audio_data}`;
+                            }
 
                             audioContainer.appendChild(audio);
                             wrapper.appendChild(audioContainer);
@@ -2127,30 +2481,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         audio.controls = true;
                         audio.preload = "metadata";
 
-                        // Load audio data immediately for proper duration display
-                        let audioLoaded = false;
-                        const loadAudioData = async () => {
-                            if (audioLoaded) return;
-                            try {
-                                console.log("Voice note: Loading audio for entry", entry.id);
-                                const audioResponse = await api.get(`/entries/voice/audio/${entry.id}`);
-                                const dataUrl = `data:${audioResponse.mime_type};base64,${audioResponse.audio_data}`;
-                                audio.src = dataUrl;
-                                audioLoaded = true;
-                            } catch (error) {
-                                console.error("Voice note: Failed to load audio data:", error);
-                                const errorMsg = document.createElement("p");
-                                errorMsg.textContent = "⚠️ Audio playback not available";
-                                errorMsg.style.color = "#f44336";
-                                errorMsg.style.fontSize = "0.9em";
-                                audioContainer.innerHTML = '';
-                                audioContainer.appendChild(errorMsg);
-                            }
-                        };
+                        if (entry.audio_data) {
+                            audio.src = `data:audio/webm;base64,${entry.audio_data}`;
+                        }
 
-                        // Load audio data immediately when the element is created
-                        loadAudioData();
-                        audio.addEventListener('canplay', () => console.log("Voice note: Audio can play"));
+                        audio.addEventListener('error', (e) => {
+                            console.error("Voice note: Audio playback error:", e);
+                            const errorMsg = document.createElement("p");
+                            errorMsg.textContent = "⚠️ Audio playback not supported in this browser";
+                            errorMsg.style.color = "#f44336";
+                            errorMsg.style.fontSize = "0.9em";
+                            audioContainer.appendChild(errorMsg);
+                        });
+
+                        audio.addEventListener('loadstart', () => {
+                            console.log("Voice note: Audio loading started");
+                        });
 
                         audioContainer.appendChild(audio);
                         wrapper.appendChild(audioContainer);
@@ -3270,19 +3616,40 @@ document.addEventListener('DOMContentLoaded', () => {
     function showJournalEntryModal(title, content, mood, theme, createdDate, entryType = 'text') {
         const modal = document.createElement('div');
         modal.className = 'modal journal-entry-modal';
+        const isDrawingEntry = entryType === 'drawing';
+        const hasDrawingData = content && content.includes('[Drawing Data]');
 
-        let contentHTML = content.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('');
+        let contentHTML = '';
+        if (isDrawingEntry && hasDrawingData) {
+            const drawingDataMatch = content.match(/\[Drawing Data\]\n(.+)/);
+            const textContent = content.replace(/\[Drawing Data\]\n.+/, '').trim();
+
+            if (textContent) {
+                contentHTML += textContent.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('');
+                contentHTML += '<br>';
+            }
+
+            if (drawingDataMatch) {
+                contentHTML += `<div class="modal-drawing-container">
+                    <img src="${drawingDataMatch[1]}" alt="Drawing" class="modal-drawing-image" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+                    <p style="text-align: center; color: #666; font-size: 0.9em; margin-top: 10px;">🎨 Drawing Entry</p>
+                </div>`;
+            }
+        } else {
+            contentHTML = content.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('');
+        }
 
         modal.innerHTML = `
             <div class="modal-content journal-modal-content" style="max-width: 700px;">
                 <div class="modal-header">
-                    <h2>${title || "Untitled"}</h2>
+                    <h2>${title || "Untitled"} ${isDrawingEntry ? '🎨' : ''}</h2>
                     <button id="closeEntryModal" class="close-modal-btn">×</button>
                 </div>
                 <div class="modal-body">
                     <div class="entry-metadata">
                         <span class="mood-tag">${getMoodEmoji(mood)} ${mood}</span>
                         <time class="entry-date">${formatDateTimeIST(createdDate)}</time>
+                        ${isDrawingEntry ? '<span class="entry-type-tag">🎨 Drawing</span>' : ''}
                     </div>
                     <div class="entry-full-content" id="entryFullContent">
                         ${contentHTML}
